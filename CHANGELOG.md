@@ -2,6 +2,21 @@
 
 Todos los cambios notables de este proyecto se documentan en este archivo.
 
+## [2026-08-04]
+
+### Agregado
+- **Pestaña 🔷 Polígono** — nueva pestaña para dibujar zonas/áreas de inspección y exportarlas a KML/GeoJSON.
+  - Vértices por dirección reutilizando `geocodeAddr` ("calle y altura" o "calle Y calle") o por clic directo en el mapa (`polyAddVertex`, `polyAddByAddress`).
+  - Edición visual sobre el mapa: arrastrar vértices para moverlos, insertar uno nuevo arrastrando un punto traslúcido del borde (`polyRebuildMidMarkersOnly`), borrar con un clic sobre el vértice, clic derecho para finalizar la zona.
+  - Resumen en vivo de cantidad de vértices, área y perímetro (`polyArea`, `polyPerimeter`, proyección local en `polyProject`).
+  - Flujo Finalizar/Editar/Limpiar (`polyFinalizar`, `polyEditar`, `polyClear`) y exportación a KML (`buildPolygonKml`/`downloadPolyKml`) y GeoJSON (`downloadPolyGeojson`).
+
+- **🖼️ Generar polígono desde imagen (experimental — no queda funcionando como se esperaba, pendiente de revisión):**
+  - Detección automática del contorno de un polígono dibujado en una captura subida por el usuario: flood fill por color a partir de un clic dentro del relleno (`piDetectFromSeed`), trazado radial del borde desde el centroide (`piRadialContour`) y simplificación a vértices reales con Douglas-Peucker adaptado a contorno cerrado (`piDouglasPeuckerClosed`).
+  - Georreferenciación por 2 puntos de referencia (imagen ↔ dirección real o clic en el mapa real) resueltos con una transformación de similitud (rotación + escala + traslación) para convertir píxeles de la imagen en lat/lon (`piGenerateOnMap`).
+  - Sugerencia automática de puntos de referencia por OCR (Tesseract.js): lee el texto visible en la imagen, lo matchea contra el callejero embebido y, si encuentra dos calles cercanas que efectivamente se cruzan en la realidad, propone el cruce como punto de referencia para confirmar con un clic (`piRunOcr`, `piBuildOcrSuggestions`, `piApplyOcrSuggestion`).
+  - **Estado:** el pipeline corre sin errores y fue validado con imágenes sintéticas, pero en uso real el resultado no salió como se esperaba — precisión de la detección/OCR a mejorar antes de confiar en esta función para trabajo real.
+
 ## [2026-07-31]
 
 ### Agregado
