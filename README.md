@@ -14,29 +14,35 @@ La herramienta permite generar archivos KML compatibles con Google Earth y otras
 
 ## 🚀 Funcionalidades
 
-La app tiene **cuatro pestañas**:
+La app tiene **cuatro pestañas**, y cada una tiene su propio botón **↩️ Deshacer** para volver atrás si una acción (finalizar, limpiar, unir atributos, etc.) no salió como se esperaba.
 
 ### 📏 Por Cuadras
-Búsqueda de una calle y partición del recorrido en bloques de N cuadras, con descarga individual o en ZIP.
+- Búsqueda de una calle y partición del recorrido en bloques de N **cuadras consecutivas** (ordenadas por altura antes de cortar, para que cada KML sea un tramo real sin saltos), con descarga individual o en ZIP.
+- **Por lote (Excel/CSV):** subís un archivo con una columna "calle y altura" (y comuna opcional) → geocodifica cada dirección y arma un recorrido en línea que **cambia de color cada vez que cambia la calle**. Descarga individual, ZIP, o un KML unificado — con toda la info de cada fila del Excel en la descripción de cada punto.
 
 ### 📍 Por Entrecalles
-- **Manual:** calle principal + dos entrecalles → traza y exporta solo el tramo entre esas dos esquinas, con corte exacto por altura de esquina (sin pasarse de cuadra).
-- **Por lote (Excel/CSV):** columnas `calle principal`, `entrecalle 1`, `entrecalle 2`, `nombre de recorrido` → genera todos los tramos de una lista y los exporta en KML individuales o ZIP.
-
-### 📄 Por Lista (Excel/CSV)
-Geocodifica un listado de direcciones (dirección + inspector) contra el callejero embebido, arma un recorrido ordenado por inspector (vecino más cercano + 2-opt) y exporta a KML/ZIP. Puede trazar el recorrido "tipo GPS" por calles reales usando OSRM público, con fallback a línea recta si no hay conexión.
+- **Manual:** calle principal + dos entrecalles (o directamente dos **alturas**, ej. 102 y 200) → traza y acumula el tramo exacto entre esos dos puntos, con corte exacto por altura de esquina (sin pasarse de cuadra). Los tramos se van sumando a una lista descargable individual, en ZIP, o como KML unificado.
+- **Por lote (Excel/CSV):** columnas `calle principal`, `entrecalle 1`, `entrecalle 2` (nombre o altura), `nombre de recorrido` → genera todos los tramos de la lista, con toda la info de cada fila incluida en el KML.
 
 ### 🔷 Polígono
-Dibuja zonas/áreas de inspección y las exporta a KML/GeoJSON.
-- Vértices por dirección (`geocodeAddr`: "calle y altura" o "calle Y calle") o por clic directo en el mapa.
-- Edición visual: arrastrar vértices, insertar en el borde (puntos traslúcidos), borrar con un clic, clic derecho para finalizar.
-- Resumen en vivo de área y perímetro; Finalizar/Editar/Limpiar; exportación a KML y GeoJSON.
-- **🖼️ Generar desde imagen (experimental, sin terminar):** subir una captura con un polígono ya dibujado (Google Maps, My Maps, GIS, etc.), detectar automáticamente su contorno (flood fill + trazado radial + simplificación Douglas-Peucker) y ubicarlo en el mapa real anclando 2 puntos de referencia (dirección, clic en el mapa, o sugeridos por OCR con Tesseract.js leyendo los nombres de calle visibles en la imagen). **Esta función quedó funcional a nivel de código pero el resultado todavía no es confiable/preciso en la práctica — pendiente de revisión antes de usarla en producción.**
+Dibuja zonas/áreas de inspección y las acumula en una lista descargable.
+- Vértices por dirección (`geocodeAddr`: "calle y altura" o "calle Y calle") o por clic directo en el mapa; arrastrar para mover o insertar, clic sobre un vértice para borrarlo.
+- Finalizar Zona acumula cada polígono en una lista (editable, individual/ZIP/KML unificado), con las calles y comunas que caen dentro de cada zona detectadas automáticamente e incluidas en la descripción del KML.
+- Subida de polígonos KML ya existentes para verlos y seguir editándolos.
+- **✂️ Separar KML por capa:** subís un KML con varias capas (folders) y lo divide en un archivo por capa, listo para importar en Google My Maps respetando sus límites (10 capas, 2.000 features y 5 MB por capa).
+
+### 🌳 Espacios Verdes
+Callejero propio de **781 plazas, parques, plazoletas y jardines de CABA**, embebido offline (reproyectado desde el GeoPackage oficial de Espacios Verdes del GCBA).
+- Buscador por nombre con autocompletar; cada resultado se acumula en una lista (individual/ZIP/KML unificado multi-parte, porque un mismo espacio verde puede tener varios fragmentos de polígono).
+- **Por lote (Excel/CSV):** buscás una lista de nombres de una sola vez.
+- **Generador de polígonos a mano**, separado de los resultados de búsqueda, con nombre editable en cualquier momento.
+- **🔗 Unir atributos por valor de campo** (como en QGIS): subís un Excel/CSV o un `.kml` con una columna que matchee por nombre, y le pega todos sus atributos a cada espacio verde coincidente — quedan en la descripción del KML exportado.
 
 ### Otras características
 - Trazado sin líneas cruzadas: cada cuadra se dibuja como polilínea independiente (evita saltos entre cuadras no contiguas).
 - Geocodificación offline tolerante a abreviaturas y orden de nombre/apellido, con desambiguación de calles homónimas por altura y comuna.
-- Exportación de recorridos individuales o en lote (ZIP) desde cualquiera de las tres pestañas.
+- Los KML "unificados" (varios elementos en un solo archivo) se generan **sin carpetas anidadas**, porque Google My Maps convierte cada `Folder` en una capa separada — así entran siempre como una sola capa.
+- Exportación individual, en lote (ZIP) o unificada desde cualquiera de las cuatro pestañas.
 
 Ver [CHANGELOG.md](./CHANGELOG.md) para el detalle de cambios por versión.
 
@@ -48,8 +54,6 @@ Ver [CHANGELOG.md](./CHANGELOG.md) para el detalle de cambios por versión.
 - [Leaflet](https://leafletjs.com/) — mapa interactivo
 - [JSZip](https://stuk.github.io/jszip/) — exportación en lote (ZIP)
 - [SheetJS/xlsx](https://sheetjs.com/) — lectura de Excel/CSV
-- [OSRM](http://project-osrm.org/) público — ruteo por calles (opcional)
-- [Tesseract.js](https://tesseract.projectnaptha.com/) — OCR para sugerir puntos de referencia en la pestaña Polígono → Generar desde imagen (experimental)
 - KML / Google Earth
 
 ---

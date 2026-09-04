@@ -2,6 +2,41 @@
 
 Todos los cambios notables de este proyecto se documentan en este archivo.
 
+## [2026-09-04]
+
+Actualización grande: se retira la pestaña 📄 Por Lista y la generación de polígono desde imagen/OCR (quedó experimental y sin terminar), y se suman una pestaña nueva (Espacios Verdes), mejoras de acumulación en Por Cuadras/Por Entrecalles/Polígono, una herramienta de unión de atributos estilo QGIS, deshacer por pestaña, y un separador de KML por capa.
+
+### Agregado
+- **Pestaña 🌳 Espacios Verdes** — callejero propio de 781 plazas/parques/plazoletas/jardines de CABA, embebido offline (reproyectado desde Gauss-Krüger/Campo Inchauspe a lat/lon y simplificado con tolerancia de 1 m a partir del GeoPackage oficial de Espacios Verdes del GCBA).
+  - Buscador por nombre con autocompletar (`evDoSearch`, `evAddZona`), resultados acumulables (individual/ZIP/KML unificado multi-parte vía `MultiGeometry`, ya que un mismo espacio puede tener varios fragmentos de polígono).
+  - Por lote (Excel/CSV) buscando una lista de nombres de una sola vez (`buildEvLote`, `findEspacioByName`).
+  - Generador de polígonos a mano independiente de los resultados de búsqueda, con nombre editable en cualquier momento (`evPolyFinalizar`, `evRenameDrawnZona`, `evEditDrawnZona`).
+  - **Unir atributos por valor de campo** (como la herramienta homónima de QGIS): matchea por nombre contra un Excel/CSV o un `.kml` (leyendo `ExtendedData`) y pega todos los atributos de la fila/Placemark coincidente a cada elemento (`runAttributeJoin`, `parseJoinFile`).
+
+- **Pestaña 📏 Por Cuadras**
+  - Corrección: las cuadras se ordenan por altura antes de cortarlas en bloques de N, para que cada KML sea siempre un tramo **consecutivo** (antes salían mezcladas porque el callejero embebido no viene ordenado).
+  - Por lote (Excel/CSV): sube una columna "calle y altura" y arma un recorrido en línea que cambia de color cada vez que cambia la calle, con toda la info de cada fila incluida en la descripción de cada punto del KML (`buildCuadrasLista`, `buildCuadrasTramoKml`).
+
+- **Pestaña 📍 Por Entrecalles**
+  - Las entrecalles ahora también aceptan una **altura directa** en vez de un nombre (ej. entrecalle 1: 102, entrecalle 2: 200), tanto en el modo manual como en el lote — sin afectar el flujo de dos entrecalles con nombre, que sigue igual.
+  - Los tramos trazados a mano se **acumulan** en una lista (antes se reemplazaban) con descarga individual, ZIP o KML unificado.
+  - Toda la info del Excel/CSV del modo por lote queda en la descripción del KML de cada tramo.
+
+- **Pestaña 🔷 Polígono**
+  - Las zonas finalizadas se **acumulan** en una lista (editable, renombrable) en vez de reemplazarse; descarga individual, ZIP o KML unificado.
+  - Cada zona detecta automáticamente qué calles y comunas del callejero embebido caen dentro del polígono, y las incluye en la descripción del KML (`findStreetsAndComunasInZona`).
+  - Subida de polígonos KML existentes para verlos y seguir editándolos (`handlePolyKmlFiles`).
+  - **✂️ Separar KML por capa:** sube un KML con varias capas/folders y lo divide en un archivo por capa (con vista previa en el mapa), respetando los límites de Google My Maps (10 capas, 2.000 features y 5 MB por archivo).
+
+- **↩️ Deshacer por pestaña**: antes de cada acción importante (generar, finalizar, limpiar, unir atributos, etc.) se guarda una foto del estado de esa pestaña; el botón "Deshacer último cambio" la restaura.
+
+### Corregido
+- Los KML "unificados" (varios tramos/zonas en un solo archivo) ya no usan `<Folder>` para agrupar: Google My Maps convierte cada `Folder` de primer nivel (incluso anidada) en una capa separada al importar, así que ahora todo va como `Placemark` plano dentro de un único `Document`, para que entre siempre como una sola capa.
+
+### Quitado
+- Pestaña 📄 Por Lista (geocodificación de listados con ruteo OSRM) — reemplazada en la práctica por las opciones "Por lote" de Por Cuadras y Por Entrecalles.
+- Generación de polígono desde imagen (flood fill + OCR con Tesseract.js) — había quedado experimental y sin resultados confiables; se retira hasta poder revisarla en profundidad.
+
 ## [2026-08-04]
 
 ### Agregado
