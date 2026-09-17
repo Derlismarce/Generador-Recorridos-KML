@@ -185,6 +185,10 @@
         <div class="report" id="cuadrasListaReport"></div>
         <div class="section-title" id="cuadrasListaTitle">📦 Tramos generados</div>
         <div class="kml-list" id="cuadrasListaList"></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkCuadrasListaPuntos" checked> Incluir puntos (marcadores) en el KML</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkCuadrasListaColorUnico"> Usar un solo color para todos los tramos</label>
+        </div>
         <div class="actions">
           <button class="btn-secondary" id="btnCuadrasListaZip">⬇ ZIP</button>
           <button class="btn-secondary" id="btnCuadrasListaUnified">⬇ Unificado (KML)</button>
@@ -1000,15 +1004,27 @@ function renderCuadrasListaList(){
   });
 }
 
+// Opciones de descarga de "Por Cuadras por lote": incluir/ocultar los puntos y usar
+// un solo color para todos los tramos en vez del color por calle.
+const CUADRAS_LISTA_COLOR_UNICO='#0055a5';
+function cuadrasListaOpts(){
+  const chkP=document.getElementById('chkCuadrasListaPuntos');
+  const chkC=document.getElementById('chkCuadrasListaColorUnico');
+  return { incluirPuntos: !chkP || chkP.checked, colorUnico: !!(chkC && chkC.checked) };
+}
+
 function buildCuadrasTramoKml(t, title){
-  const kcol=segColorToKml(t.color);
+  const opts=cuadrasListaOpts();
+  const kcol=segColorToKml(opts.colorUnico ? CUADRAS_LISTA_COLOR_UNICO : t.color);
   const routeCoords=(t.routeCoords&&t.routeCoords.length)?t.routeCoords:t.points.map(p=>p.pt);
   const lineCoords=routeCoords.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
   let body='    <Placemark>\n      <name>'+esc(title)+'</name>\n      <styleUrl>#ls</styleUrl>\n      <LineString><tessellate>1</tessellate><coordinates>'+lineCoords+'</coordinates></LineString>\n    </Placemark>\n';
-  t.points.forEach((p,i)=>{
-    const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
-    body+='    <Placemark>\n      <name>'+(i+1)+'. '+esc(p.direccion)+'</name>\n      <description><![CDATA['+descHtml+']]></description>\n      <styleUrl>#ps</styleUrl>\n      <Point><coordinates>'+p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0</coordinates></Point>\n    </Placemark>\n';
-  });
+  if(opts.incluirPuntos){
+    t.points.forEach((p,i)=>{
+      const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
+      body+='    <Placemark>\n      <name>'+(i+1)+'. '+esc(p.direccion)+'</name>\n      <description><![CDATA['+descHtml+']]></description>\n      <styleUrl>#ps</styleUrl>\n      <Point><coordinates>'+p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0</coordinates></Point>\n    </Placemark>\n';
+    });
+  }
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>'+esc(title)+'</name>\n'+
     '    <Style id="ls"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n'+
     '    <Style id="ps"><IconStyle><color>'+kcol+'</color><scale>1.1</scale></IconStyle></Style>\n'+
@@ -1037,18 +1053,21 @@ async function downloadCuadrasListaZip(){
 
 // KML único con todos los tramos (sin <Folder>, para que Google My Maps lo importe como una sola capa)
 function buildCuadrasListaUnifiedKml(tramos){
+  const opts=cuadrasListaOpts();
   let styles='', placemarksAll='';
   tramos.forEach((t,ti)=>{
-    const kcol=segColorToKml(t.color);
+    const kcol=segColorToKml(opts.colorUnico ? CUADRAS_LISTA_COLOR_UNICO : t.color);
     styles+='    <Style id="l_'+ti+'"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n'+
             '    <Style id="p_'+ti+'"><IconStyle><color>'+kcol+'</color><scale>1.1</scale></IconStyle></Style>\n';
     const routeCoords=(t.routeCoords&&t.routeCoords.length)?t.routeCoords:t.points.map(p=>p.pt);
     const lineCoords=routeCoords.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
     placemarksAll+='    <Placemark>\n      <name>'+esc(t.street)+'</name>\n      <styleUrl>#l_'+ti+'</styleUrl>\n      <LineString><tessellate>1</tessellate><coordinates>'+lineCoords+'</coordinates></LineString>\n    </Placemark>\n';
-    t.points.forEach((p,i)=>{
-      const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
-      placemarksAll+='    <Placemark>\n      <name>'+(i+1)+'. '+esc(p.direccion)+'</name>\n      <description><![CDATA['+descHtml+']]></description>\n      <styleUrl>#p_'+ti+'</styleUrl>\n      <Point><coordinates>'+p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0</coordinates></Point>\n    </Placemark>\n';
-    });
+    if(opts.incluirPuntos){
+      t.points.forEach((p,i)=>{
+        const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
+        placemarksAll+='    <Placemark>\n      <name>'+(i+1)+'. '+esc(p.direccion)+'</name>\n      <description><![CDATA['+descHtml+']]></description>\n      <styleUrl>#p_'+ti+'</styleUrl>\n      <Point><coordinates>'+p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0</coordinates></Point>\n    </Placemark>\n';
+      });
+    }
   });
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Recorrido por lista ('+tramos.length+' tramos)</name>\n'+styles+placemarksAll+'  </Document>\n</kml>';
 }
