@@ -470,7 +470,7 @@ let map, layerGroup, splitPreviewGroup, currentTab = 'cuadras';
 
 document.addEventListener('DOMContentLoaded', async () => {
   map = L.map('map', { center: [-34.615, -58.44], zoom: 13 });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 19, subdomains: 'abcd' }).addTo(map);
   layerGroup = L.layerGroup().addTo(map);
   splitPreviewGroup = L.layerGroup().addTo(map);
 
