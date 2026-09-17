@@ -951,8 +951,9 @@ function buildCuadrasLista(){
       ci++;
       cuadrasLoteTramos.push(curSeg);
     }
-    curSeg.points.push({ pt:g.pt, direccion:dirTxt, status:g.status, extra });
+    curSeg.points.push({ pt:g.pt, direccion:dirTxt, status:g.status, extra, alt:(g.alt==null?null:g.alt) });
   });
+  cuadrasLoteTramos.forEach(t=>{ t.routeCoords=buildTramoRouteCoords(t); });
   hideLoading();
   drawCuadrasLista();
   renderCuadrasListaList();
@@ -972,7 +973,8 @@ function drawCuadrasLista(){
   layerGroup.clearLayers();
   const allPts=[];
   for(const t of cuadrasLoteTramos){
-    const ll=t.points.map(p=>[p.pt[1],p.pt[0]]);
+    const routeCoords=(t.routeCoords&&t.routeCoords.length)?t.routeCoords:t.points.map(p=>p.pt);
+    const ll=routeCoords.map(p=>[p[1],p[0]]);
     if(ll.length>=2) L.polyline(ll,{color:t.color,weight:5,opacity:.85}).addTo(layerGroup);
     t.points.forEach((p,i)=>{
       const icon=L.divIcon({className:'', html:'<div class="mk-num" style="background:'+t.color+'">'+(i+1)+'</div>', iconSize:[22,22], iconAnchor:[11,11]});
@@ -1000,7 +1002,8 @@ function renderCuadrasListaList(){
 
 function buildCuadrasTramoKml(t, title){
   const kcol=segColorToKml(t.color);
-  const lineCoords=t.points.map(p=>p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0').join(' ');
+  const routeCoords=(t.routeCoords&&t.routeCoords.length)?t.routeCoords:t.points.map(p=>p.pt);
+  const lineCoords=routeCoords.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
   let body='    <Placemark>\n      <name>'+esc(title)+'</name>\n      <styleUrl>#ls</styleUrl>\n      <LineString><tessellate>1</tessellate><coordinates>'+lineCoords+'</coordinates></LineString>\n    </Placemark>\n';
   t.points.forEach((p,i)=>{
     const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
@@ -1039,7 +1042,8 @@ function buildCuadrasListaUnifiedKml(tramos){
     const kcol=segColorToKml(t.color);
     styles+='    <Style id="l_'+ti+'"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n'+
             '    <Style id="p_'+ti+'"><IconStyle><color>'+kcol+'</color><scale>1.1</scale></IconStyle></Style>\n';
-    const lineCoords=t.points.map(p=>p.pt[0].toFixed(6)+','+p.pt[1].toFixed(6)+',0').join(' ');
+    const routeCoords=(t.routeCoords&&t.routeCoords.length)?t.routeCoords:t.points.map(p=>p.pt);
+    const lineCoords=routeCoords.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
     placemarksAll+='    <Placemark>\n      <name>'+esc(t.street)+'</name>\n      <styleUrl>#l_'+ti+'</styleUrl>\n      <LineString><tessellate>1</tessellate><coordinates>'+lineCoords+'</coordinates></LineString>\n    </Placemark>\n';
     t.points.forEach((p,i)=>{
       const descHtml=extraRowDescHtml(p.extra)+(p.status!=='ok'?'<br><i>'+esc(p.status)+'</i>':'');
@@ -1676,12 +1680,42 @@ function geocodeAddr(direccion, comuna){
   if(nums){ alt=parseInt(nums[nums.length-1]); d=d.replace(new RegExp('\\b'+nums[nums.length-1]+'\\b'),' '); }
   const s=findStreetByName(d, alt, comuna);
   if(!s) return {pt:null, status:'no encontrada'};
-  if(alt==null){ const cu=s.c[Math.floor(s.c.length/2)]; return {pt:interpCuadra(cu,(cu[0]+cu[1])/2), status:'sin altura', street:s.n}; }
+  if(alt==null){ const cu=s.c[Math.floor(s.c.length/2)]; return {pt:interpCuadra(cu,(cu[0]+cu[1])/2), status:'sin altura', street:s.n, alt:null}; }
   const cand=s.c.filter(cu=>altIn(cu,alt));
-  if(!cand.length){ let cu=s.c[0],bd=Infinity; for(const c of s.c){ const dd=Math.min(Math.abs(alt-c[0]),Math.abs(alt-c[1])); if(dd<bd){bd=dd;cu=c;} } return {pt:interpCuadra(cu,alt), status:'altura aprox', street:s.n}; }
+  if(!cand.length){ let cu=s.c[0],bd=Infinity; for(const c of s.c){ const dd=Math.min(Math.abs(alt-c[0]),Math.abs(alt-c[1])); if(dd<bd){bd=dd;cu=c;} } return {pt:interpCuadra(cu,alt), status:'altura aprox', street:s.n, alt}; }
   const par=cand.filter(cu=>(cu[0]%2)===(alt%2));
   const cu=(par.length?par:cand)[0];
-  return {pt:interpCuadra(cu,alt), status:'ok', street:s.n};
+  return {pt:interpCuadra(cu,alt), status:'ok', street:s.n, alt};
+}
+
+// Arma la línea de un tramo (misma calle, "Por Cuadras" por lote) siguiendo las cuadras
+// reales de la calle entre los puntos dados, en vez de una recta punto a punto.
+// - Un solo punto: se toma la cuadra completa que contiene esa altura (ej. 100 → cuadra 100-199).
+// - Varios puntos: entre cada par consecutivo se concatenan todas las cuadras cuyo rango de
+//   altura cae entre ambos puntos (ej. 1300 → 4100: cuadra 1300-1399, 1400-1499, ..., 4000-4100).
+function buildTramoRouteCoords(t){
+  const street = STREETS.find(s=>s.n===t.street);
+  if(!street || !t.points.length) return t.points.map(p=>p.pt);
+  const cuadras=[...street.c].sort((a,b)=>Math.min(a[0],a[1])-Math.min(b[0],b[1]));
+  if(t.points.length===1){
+    const alt=t.points[0].alt;
+    if(alt==null) return [t.points[0].pt];
+    let cu=cuadras.find(c=>altIn(c,alt));
+    if(!cu){ let best=cuadras[0], bd=Infinity; for(const c of cuadras){ const dd=Math.min(Math.abs(alt-c[0]),Math.abs(alt-c[1])); if(dd<bd){bd=dd;best=c;} } cu=best; }
+    return cu ? cu[2].map(p=>p.slice()) : [t.points[0].pt];
+  }
+  let coords=[];
+  for(let i=0;i<t.points.length-1;i++){
+    const a=t.points[i], b=t.points[i+1];
+    if(a.alt==null || b.alt==null){ coords.push(a.pt, b.pt); continue; }
+    const lo=Math.min(a.alt,b.alt), hi=Math.max(a.alt,b.alt);
+    const asc=b.alt>=a.alt;
+    let seg=cuadras.filter(cu=>{ const cmin=Math.min(cu[0],cu[1]), cmax=Math.max(cu[0],cu[1]); return cmax>=lo && cmin<=hi; });
+    if(!seg.length){ coords.push(a.pt, b.pt); continue; }
+    if(!asc) seg=seg.slice().reverse();
+    seg.forEach(cu=>coords.push(...cu[2]));
+  }
+  return coords;
 }
 /* =================================================================== */
 
