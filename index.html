@@ -1713,7 +1713,20 @@ function buildTramoRouteCoords(t){
     let seg=cuadras.filter(cu=>{ const cmin=Math.min(cu[0],cu[1]), cmax=Math.max(cu[0],cu[1]); return cmax>=lo && cmin<=hi; });
     if(!seg.length){ coords.push(a.pt, b.pt); continue; }
     if(!asc) seg=seg.slice().reverse();
-    seg.forEach(cu=>coords.push(...cu[2]));
+    // Cada cuadra guarda sus puntos en un orden propio (no siempre alineado con la
+    // cuadra vecina): se orienta cada una según el extremo más cercano al punto
+    // anterior, para que la línea no haga zigzag al pasar de una cuadra a otra.
+    let ref = coords.length ? coords[coords.length-1] : a.pt;
+    seg.forEach(cu=>{
+      const pts=cu[2];
+      if(!pts.length) return;
+      const ordered = distM(ref, pts[pts.length-1]) < distM(ref, pts[0]) ? pts.slice().reverse() : pts;
+      ordered.forEach(p=>{
+        const last=coords[coords.length-1];
+        if(!last || distM(last,p)>=0.5) coords.push(p);
+      });
+      ref = ordered[ordered.length-1];
+    });
   }
   return coords;
 }
