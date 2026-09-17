@@ -468,10 +468,36 @@ const EV_DATA_B64 = "H4sIAAAAAAAC/6y9za6myW3neSsHWrWBshDfH707VXUkp5GVp3wyszC24YW
 let STREETS = [], selectedStreet = null, generatedKmls = [], activeKmlIdx = -1;
 let map, layerGroup, splitPreviewGroup, currentTab = 'cuadras';
 
+// Mapa base con respaldo automático: si CARTO no responde (key vencida, límite alcanzado, etc.)
+// prueba solo con MapTiler. Para activar el respaldo, poné tu API key gratis de MapTiler
+// (maptiler.com/cloud → cuenta gratis → Keys) acá abajo, entre las comillas.
+const MAPTILER_KEY = '';
+function addBasemap(map){
+  const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
+  const cartoAttr = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
+  let layer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: cartoAttr, maxZoom: 19, subdomains: 'abcd' });
+  let errorCount = 0, switched = false;
+  layer.on('tileerror', () => {
+    errorCount++;
+    if(switched || errorCount < 6) return;
+    switched = true;
+    if(!MAPTILER_KEY){
+      toast('⚠ El mapa base no está cargando (CARTO). Todavía no hay una API key de MapTiler cargada como respaldo.', 'error');
+      return;
+    }
+    map.removeLayer(layer);
+    layer = L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
+      attribution: '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 20
+    }).addTo(map);
+    toast('⚠ El mapa base cambió a MapTiler (CARTO no respondió)', 'error');
+  });
+  layer.addTo(map);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   map = L.map('map', { center: [-34.615, -58.44], zoom: 13 });
-  const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>', maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+  addBasemap(map);
   layerGroup = L.layerGroup().addTo(map);
   splitPreviewGroup = L.layerGroup().addTo(map);
 
