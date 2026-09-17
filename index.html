@@ -239,6 +239,11 @@
         <div id="segTramosSection" style="display:none">
           <div class="section-title" id="segTramosTitle">📦 Tramos trazados</div>
           <div class="kml-list" id="segTramosList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkSegColorUnico"> Usar un solo color para todos los tramos
+              <input type="color" id="segColorPicker" value="#a55500" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
           <div class="actions">
             <button class="btn-secondary" id="btnSegZip">⬇ Descargar todos (ZIP)</button>
             <button class="btn-secondary" id="btnSegUnified">⬇ Descargar unificado (KML)</button>
@@ -272,6 +277,11 @@
         <div id="entreLoteResult" style="display:none">
           <div class="section-title" id="entreLoteTitle">📦 Tramos generados</div>
           <div class="kml-list" id="entreLoteList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkEntreColorUnico"> Usar un solo color para todos los tramos
+              <input type="color" id="entreColorPicker" value="#a55500" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
           <div class="actions">
             <button class="btn-secondary" id="btnEntreZip">⬇ Descargar todos (ZIP)</button>
             <button class="btn-secondary" id="btnEntreUnified">⬇ Descargar unificado (KML)</button>
@@ -312,6 +322,11 @@
         <div id="polyZonasSection" style="display:none">
           <div class="section-title" id="polyZonasTitle">📦 Zonas creadas</div>
           <div class="kml-list" id="polyZonasList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkPolyColorUnico"> Usar un color personalizado para las zonas
+              <input type="color" id="polyColorPicker" value="#00a4e8" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
           <div class="actions">
             <button class="btn-secondary" id="btnPolyZonasZip">⬇ Descargar todas (ZIP)</button>
             <button class="btn-secondary" id="btnPolyZonasUnified">⬇ Descargar unificado (KML)</button>
@@ -362,6 +377,11 @@
         <div id="evZonasSection" style="display:none">
           <div class="section-title" id="evZonasTitle">📦 Espacios agregados</div>
           <div class="kml-list" id="evZonasList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkEvColorUnico"> Usar un solo color para todos los espacios
+              <input type="color" id="evColorPicker" value="#16a34a" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
           <div class="actions">
             <button class="btn-secondary" id="btnEvZip">⬇ Descargar todos (ZIP)</button>
             <button class="btn-secondary" id="btnEvUnified">⬇ Descargar unificado (KML)</button>
@@ -389,6 +409,11 @@
         <div id="evLoteResult" style="display:none">
           <div class="section-title" id="evLoteTitle">📦 Resultados del lote</div>
           <div class="kml-list" id="evLoteList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkEvLoteColorUnico"> Usar un solo color para todos los espacios
+              <input type="color" id="evLoteColorPicker" value="#16a34a" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
           <div class="actions">
             <button class="btn-secondary" id="btnEvLoteZip">⬇ Descargar todos (ZIP)</button>
             <button class="btn-secondary" id="btnEvLoteUnified">⬇ Descargar unificado (KML)</button>
@@ -420,6 +445,11 @@
           <div id="evDrawnZonasSection" style="display:none">
             <div class="section-title" id="evDrawnZonasTitle">📦 Polígonos dibujados</div>
             <div class="kml-list" id="evDrawnZonasList"></div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkEvDrawnColorUnico"> Usar un color personalizado para las zonas
+                <input type="color" id="evDrawnColorPicker" value="#00a4e8" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+              </label>
+            </div>
             <div class="actions">
               <button class="btn-secondary" id="btnEvDrawnZip">⬇ ZIP</button>
               <button class="btn-secondary" id="btnEvDrawnUnified">⬇ Unificado (KML)</button>
@@ -651,6 +681,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btnEvDrawnClear').addEventListener('click', evPolyClearDrawn);
   document.getElementById('btnEvDrawnZip').addEventListener('click', downloadEvDrawnZip);
   document.getElementById('btnEvDrawnUnified').addEventListener('click', downloadEvDrawnUnifiedKml);
+  // --- "Usar un solo color / color personalizado" en cada lista con exportación ---
+  initColorUnicoPicker('chkCuadrasListaColorUnico','cuadrasListaColorPicker','recorridosKmlColorCuadrasLista','#0055a5');
+  initColorUnicoPicker('chkSegColorUnico','segColorPicker','recorridosKmlColorSeg','#a55500');
+  initColorUnicoPicker('chkEntreColorUnico','entreColorPicker','recorridosKmlColorEntre','#a55500');
+  initColorUnicoPicker('chkPolyColorUnico','polyColorPicker','recorridosKmlColorPoly','#00a4e8');
+  initColorUnicoPicker('chkEvColorUnico','evColorPicker','recorridosKmlColorEv','#16a34a');
+  initColorUnicoPicker('chkEvLoteColorUnico','evLoteColorPicker','recorridosKmlColorEvLote','#16a34a');
+  initColorUnicoPicker('chkEvDrawnColorUnico','evDrawnColorPicker','recorridosKmlColorEvDrawn','#00a4e8');
   // --- Espacios Verdes: unir atributos por valor de campo ---
   document.getElementById('joinFile').addEventListener('change', e => { if(e.target.files[0]) parseJoinFile(e.target.files[0]); });
   const jfd=document.getElementById('joinFileDrop');
@@ -1006,24 +1044,32 @@ function renderCuadrasListaList(){
   });
 }
 
-// Opciones de descarga de "Por Cuadras por lote": incluir/ocultar los puntos y usar
-// un solo color (elegido por el usuario) para todos los tramos en vez del color por calle.
-const CUADRAS_LISTA_COLOR_UNICO_KEY='recorridosKmlColorUnico';
-(function initCuadrasListaColorPicker(){
-  const chkC=document.getElementById('chkCuadrasListaColorUnico');
-  const picker=document.getElementById('cuadrasListaColorPicker');
-  if(!chkC||!picker) return;
-  const guardado=localStorage.getItem(CUADRAS_LISTA_COLOR_UNICO_KEY);
-  if(guardado) picker.value=guardado;
-  picker.style.display=chkC.checked?'inline-block':'none';
-  chkC.addEventListener('change', ()=>{ picker.style.display=chkC.checked?'inline-block':'none'; });
-  picker.addEventListener('input', ()=>{ localStorage.setItem(CUADRAS_LISTA_COLOR_UNICO_KEY, picker.value); });
-})();
+// ===== Selector de "un solo color" reutilizable =====
+// Varias pestañas/listas (Por Cuadras, Por Entrecalles, Polígono, Espacios Verdes) tienen
+// un checkbox "usar un solo color / color personalizado" con un <input type="color"> al lado
+// que aparece solo cuando está tildado. Estas 2 funciones arman ese comportamiento (mostrar/
+// ocultar + recordar en localStorage) y lo leen al momento de exportar, para no repetir el
+// mismo código en cada sección.
+function initColorUnicoPicker(chkId, pickerId, lsKey, defaultColor){
+  const chk=document.getElementById(chkId);
+  const picker=document.getElementById(pickerId);
+  if(!chk||!picker) return;
+  const guardado=localStorage.getItem(lsKey);
+  picker.value = guardado || defaultColor;
+  picker.style.display = chk.checked?'inline-block':'none';
+  chk.addEventListener('change', ()=>{ picker.style.display = chk.checked?'inline-block':'none'; });
+  picker.addEventListener('input', ()=>{ localStorage.setItem(lsKey, picker.value); });
+}
+function colorUnicoOpts(chkId, pickerId, defaultColor){
+  const chk=document.getElementById(chkId);
+  const picker=document.getElementById(pickerId);
+  return { colorUnico: !!(chk && chk.checked), colorElegido: (picker&&picker.value)||defaultColor };
+}
+
 function cuadrasListaOpts(){
   const chkP=document.getElementById('chkCuadrasListaPuntos');
-  const chkC=document.getElementById('chkCuadrasListaColorUnico');
-  const picker=document.getElementById('cuadrasListaColorPicker');
-  return { incluirPuntos: !chkP || chkP.checked, colorUnico: !!(chkC && chkC.checked), colorElegido: (picker&&picker.value)||'#0055a5' };
+  const c=colorUnicoOpts('chkCuadrasListaColorUnico','cuadrasListaColorPicker','#0055a5');
+  return { incluirPuntos: !chkP || chkP.checked, colorUnico: c.colorUnico, colorElegido: c.colorElegido };
 }
 
 function buildCuadrasTramoKml(t, title){
@@ -1306,20 +1352,22 @@ function highlightSegTramo(idx){
 }
 
 function downloadSegTramo(t){
+  const o=colorUnicoOpts('chkSegColorUnico','segColorPicker','#a55500');
   const title=t.main.n+' ('+t.c1name+' → '+t.c2name+')';
   const name=sanitize(t.main.n)+'_'+sanitize(t.c1name)+'_a_'+sanitize(t.c2name)+'.kml';
-  const blob=new Blob([buildEntreKmlNamed(title, t.main.n, t.cuadras)],{type:'application/vnd.google-earth.kml+xml'});
+  const blob=new Blob([buildEntreKmlNamed(title, t.main.n, t.cuadras, null, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
   toast('📥 '+name,'ok');
 }
 
 async function downloadSegTramosZip(){
   if(!segTramos.length){ toast('No hay tramos para descargar','error'); return; }
+  const o=colorUnicoOpts('chkSegColorUnico','segColorPicker','#a55500');
   const zip=new JSZip(); const seen={};
   for(const t of segTramos){
     let base=sanitize(t.main.n)+'_'+sanitize(t.c1name)+'_a_'+sanitize(t.c2name);
     if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
-    zip.file(base+'.kml', buildEntreKmlNamed(t.main.n+' ('+t.c1name+' → '+t.c2name+')', t.main.n, t.cuadras));
+    zip.file(base+'.kml', buildEntreKmlNamed(t.main.n+' ('+t.c1name+' → '+t.c2name+')', t.main.n, t.cuadras, null, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tramos_manuales.zip'; a.click();
@@ -1328,14 +1376,15 @@ async function downloadSegTramosZip(){
 
 // KML único con todos los tramos trazados a mano, cada uno como su propia Folder
 // (agregado sin tocar buildEntreKmlNamed/downloadSegTramosZip, que siguen generando KMLs por separado)
-function segColorToKml(hex){ const c=(hex||'#0055a5').replace('#',''); return 'ff'+c.substring(4,6)+c.substring(2,4)+c.substring(0,2); }
-function buildSegTramosUnifiedKml(tramos){
+function hexToKmlColor(hex, alpha){ const c=(hex||'0055a5').replace('#',''); return (alpha||'ff')+c.substring(4,6)+c.substring(2,4)+c.substring(0,2); }
+function segColorToKml(hex){ return hexToKmlColor(hex,'ff'); }
+function buildSegTramosUnifiedKml(tramos, colorOverride){
   // Sin <Folder>: Google My Maps convierte CUALQUIER Folder (incluso anidada) en un grupo/capa
   // aparte en su panel. Para que quede como un solo listado (una sola capa), todos los Placemark
   // van planos, directo dentro del Document — igual que ya hace buildZonasUnifiedKml.
   let styles='', placemarksAll='';
   tramos.forEach((t,ti)=>{
-    const sid='t'+ti, kcol=segColorToKml(t.color);
+    const sid='t'+ti, kcol=segColorToKml(colorOverride||t.color);
     styles += '    <Style id="l_'+sid+'"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n';
     const placemarks = t.cuadras.map(cu=>{
       const coordStr=cu[2].map(c=>c[0].toFixed(6)+','+c[1].toFixed(6)+',0').join(' ');
@@ -1349,7 +1398,8 @@ function buildSegTramosUnifiedKml(tramos){
 
 function downloadSegTramosUnifiedKml(){
   if(!segTramos.length){ toast('No hay tramos para descargar','error'); return; }
-  const blob=new Blob([buildSegTramosUnifiedKml(segTramos)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkSegColorUnico','segColorPicker','#a55500');
+  const blob=new Blob([buildSegTramosUnifiedKml(segTramos, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tramos_manuales_unificado.kml'; a.click();
   toast('📥 tramos_manuales_unificado.kml ('+segTramos.length+' tramos)','ok');
 }
@@ -1574,21 +1624,23 @@ function extraRowDescHtml(extra){
   return Object.entries(extra).map(([k,v])=>esc(String(k))+': '+esc(v==null?'':String(v))).join('<br>');
 }
 
-function buildEntreKmlNamed(title, mainName, cuadras, extra){
+function buildEntreKmlNamed(title, mainName, cuadras, extra, colorOverride){
   // la descripción va en CADA Placemark (cada línea/cuadra), no en el Document:
   // Google My Maps solo muestra la descripción del elemento que tocás en el mapa, no la de la carpeta.
+  const kcol = colorOverride ? segColorToKml(colorOverride) : 'ffa55500';
   const descTag = extra ? ('\n      <description><![CDATA['+extraRowDescHtml(extra)+']]></description>') : '';
   const placemarks=cuadras.map(cu=>{
     const coordStr=cu[2].map(c=>c[0].toFixed(6)+','+c[1].toFixed(6)+',0').join(' ');
     return '    <Placemark>\n      <name>'+esc(mainName)+' '+cu[0]+'-'+cu[1]+'</name>'+descTag+'\n      <styleUrl>#ls</styleUrl>\n      <LineString><tessellate>1</tessellate><coordinates>'+coordStr+'</coordinates></LineString>\n    </Placemark>';
   }).join('\n');
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>'+esc(title)+'</name>\n    <Style id="ls"><LineStyle><color>ffa55500</color><width>5</width></LineStyle></Style>\n'+placemarks+'\n  </Document>\n</kml>';
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>'+esc(title)+'</name>\n    <Style id="ls"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n'+placemarks+'\n  </Document>\n</kml>';
 }
 
 function downloadEntreKml(r){
   if(!r.cuadras.length){ toast('Ese tramo no se pudo generar','error'); return; }
+  const o=colorUnicoOpts('chkEntreColorUnico','entreColorPicker','#a55500');
   const title=r.nombre+' — '+r.main.n+' ('+r.c1name+' → '+r.c2name+')';
-  const blob=new Blob([buildEntreKmlNamed(title, r.main.n, r.cuadras, r.extra)],{type:'application/vnd.google-earth.kml+xml'});
+  const blob=new Blob([buildEntreKmlNamed(title, r.main.n, r.cuadras, r.extra, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=sanitize(r.nombre)+'.kml'; a.click();
   toast('📥 '+sanitize(r.nombre)+'.kml','ok');
 }
@@ -1596,11 +1648,12 @@ function downloadEntreKml(r){
 async function downloadEntreZip(){
   const ok=entreRecorridos.filter(r=>r.cuadras.length);
   if(!ok.length){ toast('No hay tramos para descargar','error'); return; }
+  const o=colorUnicoOpts('chkEntreColorUnico','entreColorPicker','#a55500');
   const zip=new JSZip(); const seen={};
   for(const r of ok){
     let base=sanitize(r.nombre); if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
     const title=r.nombre+' — '+r.main.n+' ('+r.c1name+' → '+r.c2name+')';
-    zip.file(base+'.kml', buildEntreKmlNamed(title, r.main.n, r.cuadras, r.extra));
+    zip.file(base+'.kml', buildEntreKmlNamed(title, r.main.n, r.cuadras, r.extra, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tramos_entrecalles.zip'; a.click();
@@ -1609,13 +1662,13 @@ async function downloadEntreZip(){
 
 // KML único con todos los tramos del lote (Excel/CSV), cada uno como su propia Folder
 // (agregado sin tocar buildEntreKmlNamed/downloadEntreZip, que siguen generando KMLs por separado)
-function buildEntreLoteUnifiedKml(recorridos){
+function buildEntreLoteUnifiedKml(recorridos, colorOverride){
   // Sin <Folder>: Google My Maps convierte CUALQUIER Folder (incluso anidada) en un grupo/capa
   // aparte en su panel. Para que quede como un solo listado (una sola capa), todos los Placemark
   // van planos, directo dentro del Document — igual que ya hace buildZonasUnifiedKml.
   let styles='', placemarksAll='';
   recorridos.forEach((r,ri)=>{
-    const sid='r'+ri, kcol=segColorToKml(r.color);
+    const sid='r'+ri, kcol=segColorToKml(colorOverride||r.color);
     styles += '    <Style id="l_'+sid+'"><LineStyle><color>'+kcol+'</color><width>5</width></LineStyle></Style>\n';
     const descTag = r.extra ? ('\n      <description><![CDATA['+extraRowDescHtml(r.extra)+']]></description>') : '';
     const placemarks = r.cuadras.map(cu=>{
@@ -1631,7 +1684,8 @@ function buildEntreLoteUnifiedKml(recorridos){
 function downloadEntreLoteUnifiedKml(){
   const ok=entreRecorridos.filter(r=>r.cuadras.length);
   if(!ok.length){ toast('No hay tramos para descargar','error'); return; }
-  const blob=new Blob([buildEntreLoteUnifiedKml(ok)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkEntreColorUnico','entreColorPicker','#a55500');
+  const blob=new Blob([buildEntreLoteUnifiedKml(ok, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='tramos_entrecalles_unificado.kml'; a.click();
   toast('📥 tramos_entrecalles_unificado.kml ('+ok.length+' tramos)','ok');
 }
@@ -2006,7 +2060,7 @@ function findStreetsAndComunasInZona(verts){
   return { streets:[...streetNames].sort((a,b)=>a.localeCompare(b,'es')), comunas:[...comunas].sort((a,b)=>a-b) };
 }
 
-function buildPolygonKml(verts, title, extra){
+function buildPolygonKml(verts, title, extra, colorOverride){
   const coords=verts.map(v=>v.lon.toFixed(6)+','+v.lat.toFixed(6)+',0');
   coords.push(coords[0]);
   const areaTxt=fmtArea(polyAreaFor(verts)), perimTxt=fmtDist(polyPerimeterFor(verts));
@@ -2017,11 +2071,13 @@ function buildPolygonKml(verts, title, extra){
     comunasTxt+'<br>'+
     'Calles dentro del polígono ('+info.streets.length+'): '+callesTxt;
   if(extra) descHtml += '<br><br><b>Datos unidos:</b><br>'+extraRowDescHtml(extra);
+  const lineCol = colorOverride ? hexToKmlColor(colorOverride,'ff') : 'ff00a4e8';
+  const fillCol = colorOverride ? hexToKmlColor(colorOverride,'7f') : '7f4aa316';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${esc(title)} (${verts.length} vértices)</name>
-    <Style id="zonaStyle"><LineStyle><color>ff00a4e8</color><width>3</width></LineStyle><PolyStyle><color>7f4aa316</color></PolyStyle></Style>
+    <Style id="zonaStyle"><LineStyle><color>${lineCol}</color><width>3</width></LineStyle><PolyStyle><color>${fillCol}</color></PolyStyle></Style>
     <Placemark>
       <name>${esc(title)} (${esc(areaTxt)})</name>
       <description><![CDATA[${descHtml}]]></description>
@@ -2040,7 +2096,8 @@ function buildPolygonKml(verts, title, extra){
 }
 
 function downloadZonaKml(z){
-  const blob=new Blob([buildPolygonKml(z.verts, z.name)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkPolyColorUnico','polyColorPicker','#00a4e8');
+  const blob=new Blob([buildPolygonKml(z.verts, z.name, null, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const name=sanitize(z.name)+'.kml';
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
   toast('📥 '+name,'ok');
@@ -2048,10 +2105,11 @@ function downloadZonaKml(z){
 
 async function downloadZonasZip(){
   if(!polyZonas.length){ toast('No hay zonas para descargar','error'); return; }
+  const o=colorUnicoOpts('chkPolyColorUnico','polyColorPicker','#00a4e8');
   const zip=new JSZip(); const seen={};
   for(const z of polyZonas){
     let base=sanitize(z.name); if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
-    zip.file(base+'.kml', buildPolygonKml(z.verts, z.name));
+    zip.file(base+'.kml', buildPolygonKml(z.verts, z.name, null, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zonas_poligonos.zip'; a.click();
@@ -2060,7 +2118,9 @@ async function downloadZonasZip(){
 
 // KML único con todas las zonas juntas, cada una como su propio Placemark/Polygon
 // (agregado sin tocar buildPolygonKml/downloadZonasZip, que siguen generando KMLs por separado)
-function buildZonasUnifiedKml(zonas){
+function buildZonasUnifiedKml(zonas, colorOverride){
+  const lineCol = colorOverride ? hexToKmlColor(colorOverride,'ff') : 'ff00a4e8';
+  const fillCol = colorOverride ? hexToKmlColor(colorOverride,'7f') : '7f4aa316';
   const placemarks = zonas.map(z=>{
     const verts=z.verts;
     const coords=verts.map(v=>v.lon.toFixed(6)+','+v.lat.toFixed(6)+',0');
@@ -2091,7 +2151,7 @@ function buildZonasUnifiedKml(zonas){
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>Zonas poligonales (${zonas.length})</name>
-    <Style id="zonaStyle"><LineStyle><color>ff00a4e8</color><width>3</width></LineStyle><PolyStyle><color>7f4aa316</color></PolyStyle></Style>
+    <Style id="zonaStyle"><LineStyle><color>${lineCol}</color><width>3</width></LineStyle><PolyStyle><color>${fillCol}</color></PolyStyle></Style>
 ${placemarks}
   </Document>
 </kml>`;
@@ -2099,7 +2159,8 @@ ${placemarks}
 
 function downloadZonasUnifiedKml(){
   if(!polyZonas.length){ toast('No hay zonas para descargar','error'); return; }
-  const blob=new Blob([buildZonasUnifiedKml(polyZonas)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkPolyColorUnico','polyColorPicker','#00a4e8');
+  const blob=new Blob([buildZonasUnifiedKml(polyZonas, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zonas_poligonos_unificado.kml'; a.click();
   toast('📥 zonas_poligonos_unificado.kml ('+polyZonas.length+' zonas)','ok');
 }
@@ -2295,7 +2356,7 @@ function evRenderZonasList(){
       '<button class="dl-btn" title="Descargar KML">⬇</button>';
     const btns=item.querySelectorAll('.dl-btn');
     btns[0].addEventListener('click', e=>{ e.stopPropagation(); evRemoveZona(i); });
-    btns[1].addEventListener('click', e=>{ e.stopPropagation(); evDownloadOne(z.esp, z.extra); });
+    btns[1].addEventListener('click', e=>{ e.stopPropagation(); const o=colorUnicoOpts('chkEvColorUnico','evColorPicker','#16a34a'); evDownloadOne(z.esp, z.extra, o.colorUnico?o.colorElegido:null); });
     item.addEventListener('click', ()=>{ const pts=evLatLngs(z.esp); if(pts.length) fitBoundsOnPoints(pts); });
     list.appendChild(item);
   });
@@ -2310,7 +2371,7 @@ function evClear(){
   toast('🗑️ Espacios verdes limpiados','ok');
 }
 
-function evBuildKml(esp, title, extra){
+function evBuildKml(esp, title, extra, colorOverride){
   const polys = esp.parts.map(ring=>{
     const coordStr = ring.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
     return '        <Polygon><outerBoundaryIs><LinearRing><coordinates>'+coordStr+'</coordinates></LinearRing></outerBoundaryIs></Polygon>';
@@ -2319,11 +2380,13 @@ function evBuildKml(esp, title, extra){
   let descHtml = esc(esp.tipo||esp.esp||'Espacio verde')+(esp.barrio?'<br>Barrio: '+esc(esp.barrio):'')+'<br>Superficie: '+esc(areaTxt)+(esp.parts.length>1?'<br>'+esp.parts.length+' fragmentos':'');
   // si viene de una búsqueda por lote, se agrega toda la info tal cual venía en el Excel/CSV
   if(extra) descHtml += '<br><br><b>Datos del Excel/CSV:</b><br>'+extraRowDescHtml(extra);
+  const lineCol = colorOverride ? hexToKmlColor(colorOverride,'ff') : 'ff16a34a';
+  const fillCol = colorOverride ? hexToKmlColor(colorOverride,'7f') : '7f16a34a';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${esc(title)}</name>
-    <Style id="evStyle"><LineStyle><color>ff16a34a</color><width>2</width></LineStyle><PolyStyle><color>7f16a34a</color></PolyStyle></Style>
+    <Style id="evStyle"><LineStyle><color>${lineCol}</color><width>2</width></LineStyle><PolyStyle><color>${fillCol}</color></PolyStyle></Style>
     <Placemark>
       <name>${esc(esp.n)}</name>
       <description><![CDATA[${descHtml}]]></description>
@@ -2336,8 +2399,8 @@ ${polys}
 </kml>`;
 }
 
-function evDownloadOne(esp, extra){
-  const blob=new Blob([evBuildKml(esp, esp.n, extra)],{type:'application/vnd.google-earth.kml+xml'});
+function evDownloadOne(esp, extra, colorOverride){
+  const blob=new Blob([evBuildKml(esp, esp.n, extra, colorOverride)],{type:'application/vnd.google-earth.kml+xml'});
   const name=sanitize(esp.n)+'.kml';
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
   toast('📥 '+name,'ok');
@@ -2345,10 +2408,11 @@ function evDownloadOne(esp, extra){
 
 async function evDownloadZonasZip(){
   if(!evZonas.length){ toast('No hay espacios para descargar','error'); return; }
+  const o=colorUnicoOpts('chkEvColorUnico','evColorPicker','#16a34a');
   const zip=new JSZip(); const seen={};
   for(const z of evZonas){
     let base=sanitize(z.esp.n); if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
-    zip.file(base+'.kml', evBuildKml(z.esp, z.esp.n, z.extra));
+    zip.file(base+'.kml', evBuildKml(z.esp, z.esp.n, z.extra, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='espacios_verdes.zip'; a.click();
@@ -2356,10 +2420,10 @@ async function evDownloadZonasZip(){
 }
 
 // KML único con varios espacios (sin <Folder>, para que Google My Maps lo importe como una sola capa)
-function evBuildUnifiedKml(items){
+function evBuildUnifiedKml(items, colorOverride){
   let styles='', placemarksAll='';
   items.forEach((it,i)=>{
-    const sid='e'+i, kcol=segColorToKml(it.color);
+    const sid='e'+i, kcol=segColorToKml(colorOverride||it.color);
     styles += '    <Style id="p_'+sid+'"><LineStyle><color>'+kcol+'</color><width>2</width></LineStyle><PolyStyle><color>7f'+kcol.slice(2)+'</color></PolyStyle></Style>\n';
     const polys = it.esp.parts.map(ring=>{
       const coordStr = ring.map(p=>p[0].toFixed(6)+','+p[1].toFixed(6)+',0').join(' ');
@@ -2375,7 +2439,8 @@ function evBuildUnifiedKml(items){
 
 function evDownloadZonasUnifiedKml(){
   if(!evZonas.length){ toast('No hay espacios para descargar','error'); return; }
-  const blob=new Blob([evBuildUnifiedKml(evZonas)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkEvColorUnico','evColorPicker','#16a34a');
+  const blob=new Blob([evBuildUnifiedKml(evZonas, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='espacios_verdes_unificado.kml'; a.click();
   toast('📥 espacios_verdes_unificado.kml ('+evZonas.length+' espacios)','ok');
 }
@@ -2461,7 +2526,7 @@ function renderEvLoteList(){
         '<span class="kml-range">'+esc(r.esp.n)+'</span>'+
         '<span class="kml-cuadras">'+r.esp.parts.length+' frag. · '+fmtArea(r.esp.sup||0)+'</span>'+
         '<button class="dl-btn" title="Descargar KML">⬇</button>';
-      item.querySelector('.dl-btn').addEventListener('click', e=>{ e.stopPropagation(); evDownloadOne(r.esp, r.extra); });
+      item.querySelector('.dl-btn').addEventListener('click', e=>{ e.stopPropagation(); const o=colorUnicoOpts('chkEvLoteColorUnico','evLoteColorPicker','#16a34a'); evDownloadOne(r.esp, r.extra, o.colorUnico?o.colorElegido:null); });
       item.addEventListener('click', ()=>{ const pts=evLatLngs(r.esp); if(pts.length) fitBoundsOnPoints(pts); });
     } else {
       item.style.opacity='.65';
@@ -2476,10 +2541,11 @@ function renderEvLoteList(){
 async function evDownloadLoteZip(){
   const ok=evLoteResults.filter(r=>r.found);
   if(!ok.length){ toast('No hay resultados para descargar','error'); return; }
+  const o=colorUnicoOpts('chkEvLoteColorUnico','evLoteColorPicker','#16a34a');
   const zip=new JSZip(); const seen={};
   for(const r of ok){
     let base=sanitize(r.esp.n); if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
-    zip.file(base+'.kml', evBuildKml(r.esp, r.esp.n, r.extra));
+    zip.file(base+'.kml', evBuildKml(r.esp, r.esp.n, r.extra, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='espacios_verdes_lote.zip'; a.click();
@@ -2489,7 +2555,8 @@ async function evDownloadLoteZip(){
 function evDownloadLoteUnifiedKml(){
   const ok=evLoteResults.filter(r=>r.found);
   if(!ok.length){ toast('No hay resultados para descargar','error'); return; }
-  const blob=new Blob([evBuildUnifiedKml(ok)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkEvLoteColorUnico','evLoteColorPicker','#16a34a');
+  const blob=new Blob([evBuildUnifiedKml(ok, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='espacios_verdes_lote_unificado.kml'; a.click();
   toast('📥 espacios_verdes_lote_unificado.kml ('+ok.length+' espacios)','ok');
 }
@@ -2679,7 +2746,8 @@ function renderEvDrawnZonasList(){
 }
 
 function downloadEvDrawnZonaKml(z){
-  const blob=new Blob([buildPolygonKml(z.verts, z.name, z.extra)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkEvDrawnColorUnico','evDrawnColorPicker','#00a4e8');
+  const blob=new Blob([buildPolygonKml(z.verts, z.name, z.extra, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const name=sanitize(z.name)+'.kml';
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
   toast('📥 '+name,'ok');
@@ -2687,10 +2755,11 @@ function downloadEvDrawnZonaKml(z){
 
 async function downloadEvDrawnZip(){
   if(!evDrawnZonas.length){ toast('No hay polígonos para descargar','error'); return; }
+  const o=colorUnicoOpts('chkEvDrawnColorUnico','evDrawnColorPicker','#00a4e8');
   const zip=new JSZip(); const seen={};
   for(const z of evDrawnZonas){
     let base=sanitize(z.name); if(seen[base]) base+='_'+(++seen[base]); else seen[base]=1;
-    zip.file(base+'.kml', buildPolygonKml(z.verts, z.name, z.extra));
+    zip.file(base+'.kml', buildPolygonKml(z.verts, z.name, z.extra, o.colorUnico?o.colorElegido:null));
   }
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='poligonos_dibujados.zip'; a.click();
@@ -2699,7 +2768,8 @@ async function downloadEvDrawnZip(){
 
 function downloadEvDrawnUnifiedKml(){
   if(!evDrawnZonas.length){ toast('No hay polígonos para descargar','error'); return; }
-  const blob=new Blob([buildZonasUnifiedKml(evDrawnZonas)],{type:'application/vnd.google-earth.kml+xml'});
+  const o=colorUnicoOpts('chkEvDrawnColorUnico','evDrawnColorPicker','#00a4e8');
+  const blob=new Blob([buildZonasUnifiedKml(evDrawnZonas, o.colorUnico?o.colorElegido:null)],{type:'application/vnd.google-earth.kml+xml'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='poligonos_dibujados_unificado.kml'; a.click();
   toast('📥 poligonos_dibujados_unificado.kml ('+evDrawnZonas.length+' polígonos)','ok');
 }
