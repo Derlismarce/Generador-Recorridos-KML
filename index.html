@@ -72,6 +72,8 @@
   #toast.error { background: var(--danger); }
   #toast.ok { background: var(--success); }
   .map-legend { position: absolute; bottom: 20px; right: 16px; background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.15); z-index: 100; display: none; }
+  .basemap-switcher { position: absolute; top: 16px; right: 16px; background: #fff; border-radius: 8px; padding: 6px 10px; box-shadow: 0 2px 12px rgba(0,0,0,.15); z-index: 1000; display: flex; align-items: center; gap: 6px; }
+  .basemap-switcher select { border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: var(--font); background: #f9fafb; color: #222; cursor: pointer; outline: none; }
   .leg-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .leg-line { width: 24px; height: 4px; border-radius: 2px; }
   ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
@@ -450,6 +452,16 @@
   <div class="map-area">
     <div id="loading"><div class="spinner"></div><div class="msg" id="loadingMsg">Cargando datos...</div></div>
     <div id="map"></div>
+    <div class="basemap-switcher">
+      <span title="Estilo de mapa">🗺️</span>
+      <select id="basemapSelect" title="Cambiar estilo de mapa">
+        <option value="cartoLight">CARTO Claro</option>
+        <option value="cartoDark">CARTO Oscuro</option>
+        <option value="cartoVoyager">CARTO Voyager</option>
+        <option value="maptilerTopo">MapTiler Topografía</option>
+        <option value="maptilerStreets">MapTiler Calles</option>
+      </select>
+    </div>
     <div class="map-legend" id="mapLegend">
       <div class="leg-item"><div class="leg-line" style="background:#0055a5"></div><span>Recorrido activo</span></div>
       <div class="leg-item"><div class="leg-line" style="background:#e8a400;opacity:.6"></div><span>Otros recorridos</span></div>
@@ -468,36 +480,61 @@ const EV_DATA_B64 = "H4sIAAAAAAAC/6y9za6myW3neSsHWrWBshDfH707VXUkp5GVp3wyszC24YW
 let STREETS = [], selectedStreet = null, generatedKmls = [], activeKmlIdx = -1;
 let map, layerGroup, splitPreviewGroup, currentTab = 'cuadras';
 
-// Mapa base con respaldo automático: si CARTO no responde (key vencida, límite alcanzado, etc.)
-// prueba solo con MapTiler. Para activar el respaldo, poné tu API key gratis de MapTiler
-// (maptiler.com/cloud → cuenta gratis → Keys) acá abajo, entre las comillas.
+// Mapa base con selector de estilos + respaldo automático: si CARTO no responde (key vencida,
+// límite alcanzado, etc.) prueba solo con MapTiler. Para activar el respaldo de MapTiler, poné
+// tu API key gratis (maptiler.com/cloud → cuenta gratis → Keys) acá abajo, entre las comillas.
 const MAPTILER_KEY = '';
-function addBasemap(map){
-  const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
-  const cartoAttr = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
-  let layer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: cartoAttr, maxZoom: 19, subdomains: 'abcd' });
+const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
+const CARTO_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
+const MAPTILER_ATTR = '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const BASEMAPS = {
+  cartoLight:    { label: 'CARTO Claro',        build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
+  cartoDark:     { label: 'CARTO Oscuro',       build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
+  cartoVoyager:  { label: 'CARTO Voyager',      build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
+  maptilerTopo:  { label: 'MapTiler Topografía', needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) },
+  maptilerStreets:{ label: 'MapTiler Calles',    needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) }
+};
+let currentBasemapLayer = null, currentBasemapKey = null;
+function setBasemap(map, key, opts){
+  const cfg = BASEMAPS[key];
+  if(!cfg) return;
+  if(cfg.needsKey && !MAPTILER_KEY){
+    toast('⚠ Todavía no hay una API key de MapTiler cargada para usar "' + cfg.label + '".', 'error');
+    const sel = document.getElementById('basemapSelect');
+    if(sel && currentBasemapKey) sel.value = currentBasemapKey;
+    return;
+  }
+  if(currentBasemapLayer) map.removeLayer(currentBasemapLayer);
+  const layer = cfg.build();
   let errorCount = 0, switched = false;
   layer.on('tileerror', () => {
     errorCount++;
     if(switched || errorCount < 6) return;
     switched = true;
-    if(!MAPTILER_KEY){
-      toast('⚠ El mapa base no está cargando (CARTO). Todavía no hay una API key de MapTiler cargada como respaldo.', 'error');
-      return;
+    if(key.startsWith('carto') && MAPTILER_KEY){
+      toast('⚠ El mapa base cambió a MapTiler (' + cfg.label + ' no respondió)', 'error');
+      setBasemap(map, 'maptilerTopo');
+    } else {
+      toast('⚠ El mapa base no está respondiendo (' + cfg.label + ').', 'error');
     }
-    map.removeLayer(layer);
-    layer = L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, {
-      attribution: '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 20
-    }).addTo(map);
-    toast('⚠ El mapa base cambió a MapTiler (CARTO no respondió)', 'error');
   });
   layer.addTo(map);
+  currentBasemapLayer = layer;
+  currentBasemapKey = key;
+  const sel = document.getElementById('basemapSelect');
+  if(sel) sel.value = key;
+  if(!opts || !opts.silent){ try{ localStorage.setItem('recorridosKmlBasemap', key); }catch(e){} }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   map = L.map('map', { center: [-34.615, -58.44], zoom: 13 });
-  addBasemap(map);
+  let savedBasemap = 'cartoLight';
+  try{
+    const saved = localStorage.getItem('recorridosKmlBasemap');
+    if(saved && BASEMAPS[saved] && !(BASEMAPS[saved].needsKey && !MAPTILER_KEY)) savedBasemap = saved;
+  }catch(e){}
+  setBasemap(map, savedBasemap, { silent: true });
+  document.getElementById('basemapSelect').addEventListener('change', e => setBasemap(map, e.target.value));
   layerGroup = L.layerGroup().addTo(map);
   splitPreviewGroup = L.layerGroup().addTo(map);
 
