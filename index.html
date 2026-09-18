@@ -1749,6 +1749,16 @@ function sampledPoints(street, max){
   const step=Math.ceil(pts.length/max); return pts.filter((_,i)=>i%step===0);
 }
 
+// Elige la cuadra que corresponde a una altura dada. Cuando la altura coincide justo
+// con el límite entre dos cuadras (ej. 100, que es el final de la cuadra "2 a 100" Y
+// casi el inicio de la cuadra "102 a 200"), se prioriza la cuadra que ARRANCA ahí
+// (100 a 199) en vez de la que termina ahí (1 a 100) — así "quiero desde el 100" empieza
+// realmente en el 100, no un poco antes.
+function pickCuadraForAlt(cuadraList, alt){
+  const starting = cuadraList.filter(cu=>{ const mn=Math.min(cu[0],cu[1]); return mn>=alt && mn-alt<=2; });
+  return starting.length ? starting : cuadraList.filter(cu=>altIn(cu,alt));
+}
+
 function geocodeAddr(direccion, comuna){
   let d=normAddr(direccion);
   if(!d) return {pt:null, status:'vacía'};
@@ -1767,7 +1777,7 @@ function geocodeAddr(direccion, comuna){
   const s=findStreetByName(d, alt, comuna);
   if(!s) return {pt:null, status:'no encontrada'};
   if(alt==null){ const cu=s.c[Math.floor(s.c.length/2)]; return {pt:interpCuadra(cu,(cu[0]+cu[1])/2), status:'sin altura', street:s.n, alt:null}; }
-  const cand=s.c.filter(cu=>altIn(cu,alt));
+  const cand=pickCuadraForAlt(s.c, alt);
   if(!cand.length){ let cu=s.c[0],bd=Infinity; for(const c of s.c){ const dd=Math.min(Math.abs(alt-c[0]),Math.abs(alt-c[1])); if(dd<bd){bd=dd;cu=c;} } return {pt:interpCuadra(cu,alt), status:'altura aprox', street:s.n, alt}; }
   const par=cand.filter(cu=>(cu[0]%2)===(alt%2));
   const cu=(par.length?par:cand)[0];
@@ -1786,7 +1796,9 @@ function buildTramoRouteCoords(t){
   if(t.points.length===1){
     const alt=t.points[0].alt;
     if(alt==null) return [t.points[0].pt];
-    let cu=cuadras.find(c=>altIn(c,alt));
+    const cand=pickCuadraForAlt(cuadras, alt);
+    let cu=null;
+    if(cand.length){ const par=cand.filter(c=>(c[0]%2)===(alt%2)); cu=(par.length?par:cand)[0]; }
     if(!cu){ let best=cuadras[0], bd=Infinity; for(const c of cuadras){ const dd=Math.min(Math.abs(alt-c[0]),Math.abs(alt-c[1])); if(dd<bd){bd=dd;best=c;} } cu=best; }
     return cu ? cu[2].map(p=>p.slice()) : [t.points[0].pt];
   }
@@ -1796,7 +1808,14 @@ function buildTramoRouteCoords(t){
     if(a.alt==null || b.alt==null){ coords.push(a.pt, b.pt); continue; }
     const lo=Math.min(a.alt,b.alt), hi=Math.max(a.alt,b.alt);
     const asc=b.alt>=a.alt;
-    let seg=cuadras.filter(cu=>{ const cmin=Math.min(cu[0],cu[1]), cmax=Math.max(cu[0],cu[1]); return cmax>=lo && cmin<=hi; });
+    // En el límite inferior, si una cuadra termina justo en "lo" pero existe otra que
+    // arranca ahí, se descarta la que termina (mismo criterio que pickCuadraForAlt),
+    // para no agregar un tramo extra "hacia atrás" antes del punto pedido.
+    let seg=cuadras.filter(cu=>{
+      const cmin=Math.min(cu[0],cu[1]), cmax=Math.max(cu[0],cu[1]);
+      if(cmax===lo && cuadras.some(other=>other!==cu && Math.min(other[0],other[1])>=lo && Math.min(other[0],other[1])-lo<=2)) return false;
+      return cmax>=lo && cmin<=hi;
+    });
     if(!seg.length){ coords.push(a.pt, b.pt); continue; }
     if(!asc) seg=seg.slice().reverse();
     // Cada cuadra guarda sus puntos en un orden propio (no siempre alineado con la
