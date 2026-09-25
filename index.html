@@ -528,11 +528,11 @@ const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
 const CARTO_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
 const MAPTILER_ATTR = '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const BASEMAPS = {
-  cartoLight:    { label: 'CARTO Claro',        build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
-  cartoDark:     { label: 'CARTO Oscuro',       build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
-  cartoVoyager:  { label: 'CARTO Voyager',      build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
-  maptilerTopo:  { label: 'MapTiler Topografía', needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) },
-  maptilerStreets:{ label: 'MapTiler Calles',    needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) }
+  cartoLight:    { label: 'CARTO Claro',        bg: '#e3e6e6', build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
+  cartoDark:     { label: 'CARTO Oscuro',       bg: '#1a1a1a', build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
+  cartoVoyager:  { label: 'CARTO Voyager',      bg: '#e9e7e1', build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
+  maptilerTopo:  { label: 'MapTiler Topografía', bg: '#e0e5da', needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) },
+  maptilerStreets:{ label: 'MapTiler Calles',    bg: '#e9e7e1', needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) }
 };
 let currentBasemapLayer = null, currentBasemapKey = null;
 function setBasemap(map, key, opts){
@@ -561,6 +561,10 @@ function setBasemap(map, key, opts){
   layer.addTo(map);
   currentBasemapLayer = layer;
   currentBasemapKey = key;
+  // El fondo del contenedor se ajusta al color típico de cada estilo: si no coincide con
+  // el color de los tiles, cualquier hueco mínimo entre tiles (subpíxel) se nota como una
+  // línea — con el fondo parecido, ese hueco queda invisible aunque exista.
+  map.getContainer().style.background = cfg.bg || '#ddd';
   const sel = document.getElementById('basemapSelect');
   if(sel) sel.value = key;
   if(!opts || !opts.silent){ try{ localStorage.setItem('recorridosKmlBasemap', key); }catch(e){} }
