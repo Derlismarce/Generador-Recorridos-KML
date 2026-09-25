@@ -77,7 +77,7 @@
   /* Corrige las líneas finas entre tiles del mapa (gap de subpíxel muy común en Chrome
      con proveedores raster como CARTO): se agranda cada tile 0.5px para que se superpongan
      levemente y no quede el hueco visible. */
-  .leaflet-tile-container img { width: 256.5px !important; height: 256.5px !important; }
+  .leaflet-tile-container img { width: 257px !important; height: 257px !important; }
   .leg-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .leg-line { width: 24px; height: 4px; border-radius: 2px; }
   ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
@@ -528,9 +528,9 @@ const CARTO_KEY = atob('Y2IxXzI3dWlfMV9jOTg4MDc2YjUxYTY0MmRlMDRkODAwYzU=');
 const CARTO_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
 const MAPTILER_ATTR = '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const BASEMAPS = {
-  cartoLight:    { label: 'CARTO Claro',        build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
-  cartoDark:     { label: 'CARTO Oscuro',       build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
-  cartoVoyager:  { label: 'CARTO Voyager',      build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' }) },
+  cartoLight:    { label: 'CARTO Claro',        build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
+  cartoDark:     { label: 'CARTO Oscuro',       build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
+  cartoVoyager:  { label: 'CARTO Voyager',      build: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + CARTO_KEY, { attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd', detectRetina: true }) },
   maptilerTopo:  { label: 'MapTiler Topografía', needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) },
   maptilerStreets:{ label: 'MapTiler Calles',    needsKey: true, build: () => L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + MAPTILER_KEY, { attribution: MAPTILER_ATTR, maxZoom: 20 }) }
 };
