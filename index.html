@@ -74,6 +74,10 @@
   .map-legend { position: absolute; bottom: 20px; right: 16px; background: #fff; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.15); z-index: 100; display: none; }
   .basemap-switcher { position: absolute; top: 16px; right: 16px; background: #fff; border-radius: 8px; padding: 6px 10px; box-shadow: 0 2px 12px rgba(0,0,0,.15); z-index: 1000; display: flex; align-items: center; gap: 6px; }
   .basemap-switcher select { border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: var(--font); background: #f9fafb; color: #222; cursor: pointer; outline: none; }
+  /* Corrige las líneas finas entre tiles del mapa (gap de subpíxel muy común en Chrome
+     con proveedores raster como CARTO): se agranda cada tile 0.5px para que se superpongan
+     levemente y no quede el hueco visible. */
+  .leaflet-tile-container img { width: 256.5px !important; height: 256.5px !important; }
   .leg-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .leg-line { width: 24px; height: 4px; border-radius: 2px; }
   ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
