@@ -533,9 +533,10 @@
           </div>
           <div class="actions">
             <button class="btn-secondary" id="btnRcKml">⬇ Descargar KML</button>
-            <button class="btn-secondary" id="btnRcCsv">⬇ Descargar CSV</button>
+            <button class="btn-secondary" id="btnRcKmz">⬇ Descargar KMZ</button>
           </div>
           <div class="actions">
+            <button class="btn-secondary" id="btnRcCsv">⬇ Descargar CSV</button>
             <button class="btn-secondary" id="btnRcClear">✕ Limpiar</button>
           </div>
         </div>
@@ -3356,12 +3357,27 @@ function rcDownloadCsv(){
   toast('📥 '+name+' ('+rcData.v.length.toLocaleString('es-AR')+' veredas)','ok');
 }
 
+// KMZ = el mismo KML comprimido en un zip (doc.kml): pesa ~4-5 veces menos y My Maps/Earth lo abren igual
+async function rcDownloadKmz(){
+  if(!rcResult.length) return;
+  showLoading('Comprimiendo KMZ...');
+  try{
+    const zip=new JSZip(); zip.file('doc.kml', rcBuildKml(rcResult));
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:9},mimeType:'application/vnd.google-earth.kmz'});
+    const name='recorridos_comuna_'+String(rcComuna).padStart(2,'0')+'.kmz';
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+    hideLoading();
+    toast('📥 '+name+' ('+(blob.size/1048576).toFixed(1)+' MB)','ok');
+  }catch(e){ hideLoading(); toast('❌ No se pudo armar el KMZ: '+e.message,'error'); }
+}
+
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('rcComuna').addEventListener('change', rcOnComunaChange);
   map.on('zoomend', rcUpdateLabels);
   document.getElementById('rcSize').addEventListener('input', rcUpdateHint);
   document.getElementById('btnRcDividir').addEventListener('click', rcDividir);
   document.getElementById('btnRcKml').addEventListener('click', ()=>rcDownloadKml());
+  document.getElementById('btnRcKmz').addEventListener('click', rcDownloadKmz);
   document.getElementById('btnRcCsv').addEventListener('click', rcDownloadCsv);
   document.getElementById('btnRcClear').addEventListener('click', rcClear);
   document.getElementById('btnUndoRecorridos').addEventListener('click', undoRecorridos);
