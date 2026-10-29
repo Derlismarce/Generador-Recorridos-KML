@@ -530,10 +530,15 @@
             <button class="btn-secondary" id="btnRcEdit" style="width:100%">✏️ Corregir manualmente</button>
             <div id="rcEditTools" style="display:none;margin-top:8px">
               <div class="street-info" style="display:block;background:#fffbeb;border-color:#fde68a;color:#92400e;font-size:11.5px;line-height:1.5">
-                Hacé <b>clic en las manzanas</b> para seleccionarlas (o usá el rectángulo), elegí el recorrido destino y tocá <b>Mover</b>. <b>Clic derecho</b> sobre una manzana toma su recorrido como destino. Con <b>Pintar</b> activado cada clic mueve la manzana directo al destino.
+                Elegí cómo seleccionar (como en QGIS), elegí el recorrido destino y tocá <b>Mover</b>. <b>Clic derecho</b> sobre una manzana toma su recorrido como destino. Con <b>Pintar</b> activado cada clic mueve la manzana directo al destino.
               </div>
-              <div class="actions" style="margin-top:8px">
-                <button class="btn-secondary" id="btnRcBox">▭ Seleccionar con rectángulo</button>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="btn-secondary" id="btnRcToolClick" style="flex:1;padding:8px 4px;font-size:12px">👆 Clic</button>
+                <button class="btn-secondary" id="btnRcToolBox" style="flex:1;padding:8px 4px;font-size:12px">▭ Rectángulo</button>
+                <button class="btn-secondary" id="btnRcToolPoly" style="flex:1;padding:8px 4px;font-size:12px">⬠ Polígono</button>
+              </div>
+              <div id="rcToolHint" style="font-size:11.5px;color:var(--muted);line-height:1.4;margin:6px 0"></div>
+              <div class="actions">
                 <button class="btn-secondary" id="btnRcSelClear">✕ Limpiar selección</button>
               </div>
               <div id="rcSelInfo" style="font-size:12px;color:var(--muted);margin:6px 0">Sin selección</div>
@@ -3118,7 +3123,7 @@ function undoEspacios(){
 // el mapa. Los datos de veredas viven en data/veredas/cNN.json.gz y se bajan por comuna.
 let rcData=null, rcComuna=null, rcAssign=null, rcResult=[], rcRenderer=null, rcLabels=[];
 let rcStartUsed=1, rcColorByIdx=new Map(), rcEdit=false, rcSel=new Set(), rcUnitLayers=new Map();
-let rcBoxMode=false, rcBoxStartLL=null, rcBoxRect=null, rcIgnoreClickUntil=0;
+let rcTool='click', rcBoxStartLL=null, rcBoxRect=null, rcIgnoreClickUntil=0, rcPolyPts=[], rcPolyLayer=null;
 const rcCache=new Map(), rcUndoStack=[];
 const RC_SUELTA=1000000; // mid >= esto: vereda sin manzana real (clave 999), cuenta como unidad propia
 
@@ -3136,7 +3141,7 @@ async function rcFetchComuna(n){
   if(buf[0]===0x1f && buf[1]===0x8b) text=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   else text=new TextDecoder().decode(buf);
   const raw=JSON.parse(text);
-  const data={ c:raw.c, b:raw.b, v:raw.v.map(r=>({ clave:r[0], esq:r[1], mid:r[2], bar:r[3], lon:r[4], lat:r[5], polys:r[6].map(p=>p.map(rcDecodeRing)) })) };
+  const data={ c:raw.c, b:raw.b, w:raw.w||{}, v:raw.v.map(r=>({ clave:r[0], esq:r[1], mid:r[2], bar:r[3], lon:r[4], lat:r[5], polys:r[6].map(p=>p.map(rcDecodeRing)) })) };
   rcCache.set(n,data);
   return data;
 }
@@ -3144,7 +3149,7 @@ async function rcFetchComuna(n){
 // Unidades = manzanas (las veredas sin manzana real son unidades de una sola vereda y pesan poco)
 function rcUnitsOf(v){
   const units=new Map();
-  v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={mid:d.mid,n:0,sx:0,sy:0,idx:[],w:d.mid>=RC_SUELTA?0.1:1}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
+  v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={mid:d.mid,n:0,sx:0,sy:0,idx:[],w:d.mid>=RC_SUELTA?0.1:(rcData.w[d.mid]!=null?rcData.w[d.mid]:1)}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
   const arr=[...units.values()];
   const kx=Math.cos(v[0].lat*Math.PI/180)*111320, ky=110574;
   arr.forEach(u=>{ u.lon=u.sx/u.n; u.lat=u.sy/u.n; u.x=u.lon*kx; u.y=u.lat*ky; });
@@ -3245,9 +3250,9 @@ function rcBuildResult(assign, start){
   for(let i=0;i<assign.length;i++) if(assign[i]>=0) all[assign[i]].idxs.push(i);
   const res=all.filter(r=>r.idxs.length);
   res.forEach(r=>{
-    const mz=new Set(), bs=new Set(); let sl=0, so=0; r.polys=[];
-    r.idxs.forEach(i=>{ const d=rcData.v[i]; if(d.mid<RC_SUELTA) mz.add(d.mid); sl+=d.lat; so+=d.lon; if(d.bar>=0) bs.add(rcData.b[d.bar]); d.polys.forEach(p=>r.polys.push(p)); });
-    r.manz=mz.size; r.lat=sl/r.idxs.length; r.lon=so/r.idxs.length; r.barrios=[...bs];
+    const mz=new Map(), bs=new Set(); let sl=0, so=0; r.polys=[];
+    r.idxs.forEach(i=>{ const d=rcData.v[i]; if(d.mid<RC_SUELTA && !mz.has(d.mid)) mz.set(d.mid, rcData.w[d.mid]!=null?rcData.w[d.mid]:1); sl+=d.lat; so+=d.lon; if(d.bar>=0) bs.add(rcData.b[d.bar]); d.polys.forEach(p=>r.polys.push(p)); });
+    r.manz=Math.round([...mz.values()].reduce((a,b)=>a+b,0)); r.lat=sl/r.idxs.length; r.lon=so/r.idxs.length; r.barrios=[...bs];
   });
   if(res.length) rcAssignColors(res);
   res.forEach(r=>rcColorByIdx.set(r.i,r.color));
@@ -3288,8 +3293,8 @@ function rcRedraw(noFit){
       const r=rcRecByIdx(rcAssign[u.idx[0]]); if(!r) return;
       const polys=[]; u.idx.forEach(i=>rcData.v[i].polys.forEach(p=>polys.push(p)));
       const pg=L.polygon(polys,rcUnitStyle(u,r)).addTo(layerGroup);
-      pg.on('click',e=>{ L.DomEvent.stopPropagation(e); rcUnitClick(u.mid); });
-      pg.on('contextmenu',e=>{ L.DomEvent.stop(e); rcSetDest(rcAssign[u.idx[0]]); });
+      pg.on('click',e=>{ L.DomEvent.stopPropagation(e); if(rcTool==='poly') rcPolyAdd(e.latlng); else if(rcTool==='click') rcUnitClick(u.mid); });
+      pg.on('contextmenu',e=>{ L.DomEvent.stop(e); if(rcTool==='poly' && rcPolyPts.length) rcPolyFinish(e.originalEvent.ctrlKey); else rcSetDest(rcAssign[u.idx[0]]); });
       rcUnitLayers.set(u.mid,pg); bounds.push(pg.getBounds());
     });
     rcResult.forEach(r=>rcLabels.push(rcLabelFor(r)));
@@ -3334,7 +3339,8 @@ function rcShowComuna(){
   document.getElementById('rcParams').style.display=has?'block':'none';
   if(has){
     document.getElementById('rcInfoName').textContent='COMUNA '+rcData.c;
-    const mz=new Set(rcData.v.filter(d=>d.mid<RC_SUELTA).map(d=>d.mid)).size;
+    const mzw=new Map(); rcData.v.forEach(d=>{ if(d.mid<RC_SUELTA && !mzw.has(d.mid)) mzw.set(d.mid, rcData.w[d.mid]!=null?rcData.w[d.mid]:1); });
+    const mz=Math.round([...mzw.values()].reduce((a,b)=>a+b,0));
     document.getElementById('rcInfoMeta').textContent=rcData.v.length.toLocaleString('es-AR')+' veredas · '+mz.toLocaleString('es-AR')+' manzanas · '+rcData.b.join(', ');
   }
   rcUpdateHint();
@@ -3403,7 +3409,7 @@ function rcClear(){
 
 /* ---- Corrección manual: seleccionar manzanas en el mapa y pasarlas a otro recorrido ---- */
 function rcExitEdit(){
-  rcEdit=false; rcSel.clear(); rcBoxOff();
+  rcEdit=false; rcSel.clear(); rcSetTool('click');
   const t=document.getElementById('rcEditTools'); if(t) t.style.display='none';
   const b=document.getElementById('btnRcEdit'); if(b) b.textContent='✏️ Corregir manualmente';
 }
@@ -3413,7 +3419,7 @@ function rcToggleEdit(){
   rcEdit=true;
   document.getElementById('rcEditTools').style.display='block';
   document.getElementById('btnRcEdit').textContent='✔ Terminar corrección';
-  rcFillDest(); rcUpdateSelInfo(); rcRedraw(true);
+  rcSetTool('click'); rcFillDest(); rcUpdateSelInfo(); rcRedraw(true);
 }
 function rcFillDest(keep){
   const sel=document.getElementById('rcDest'); if(!sel) return;
@@ -3430,9 +3436,9 @@ function rcSetDest(i){
 function rcUpdateSelInfo(){
   const el=document.getElementById('rcSelInfo'); if(!el) return;
   if(!rcSel.size){ el.textContent='Sin selección'; return; }
-  const um=rcUnitMap(); let mz=0, su=0, ve=0; const recs=new Set();
-  rcSel.forEach(mid=>{ const u=um.get(mid); if(!u) return; if(mid<RC_SUELTA) mz++; else su++; ve+=u.idx.length; const r=rcRecByIdx(rcAssign[u.idx[0]]); if(r) recs.add(r.num); });
-  el.textContent=mz+' manzana'+(mz!==1?'s':'')+(su?' + '+su+' vereda'+(su!==1?'s':'')+' sueltas':'')+' · '+ve+' veredas · de: '+[...recs].sort((a,b)=>a-b).join(', ');
+  const um=rcUnitMap(); let ve=0; const recs=new Set();
+  rcSel.forEach(mid=>{ const u=um.get(mid); if(!u) return; ve+=u.idx.length; const r=rcRecByIdx(rcAssign[u.idx[0]]); if(r) recs.add(r.num); });
+  el.textContent=rcSel.size+' objeto'+(rcSel.size!==1?'s':'')+' · '+ve+' veredas · de: '+[...recs].sort((a,b)=>a-b).join(', ');
 }
 function rcRestyleUnit(mid){
   const pg=rcUnitLayers.get(mid); if(!pg) return;
@@ -3449,29 +3455,94 @@ function rcUnitClick(mid){
 }
 function rcSelClear(){ const old=[...rcSel]; rcSel.clear(); old.forEach(rcRestyleUnit); rcUpdateSelInfo(); }
 
-// Selección con rectángulo (arrastrando en el mapa)
-function rcBoxOff(){
-  rcBoxMode=false;
+// ---- Herramientas de selección (como en QGIS): clic, rectángulo y polígono. Rectángulo y polígono
+// seleccionan lo que INTERSECTA la forma; con Ctrl al terminar, en vez de agregar quitan de la selección.
+function rcPip(pt, ring){
+  let inside=false; const x=pt[1], y=pt[0];
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][1], yi=ring[i][0], xj=ring[j][1], yj=ring[j][0];
+    if(((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function rcSegX(a,b,c,d){
+  const o=(p,q,r)=>(q[1]-p[1])*(r[0]-p[0])-(q[0]-p[0])*(r[1]-p[1]);
+  return (o(a,b,c)>0)!==(o(a,b,d)>0) && (o(c,d,a)>0)!==(o(c,d,b)>0);
+}
+// mids de las unidades que intersectan la forma ([lat,lon] por vértice)
+function rcShapeHits(shape){
+  let sMinLa=Infinity,sMaxLa=-Infinity,sMinLo=Infinity,sMaxLo=-Infinity;
+  shape.forEach(p=>{ if(p[0]<sMinLa)sMinLa=p[0]; if(p[0]>sMaxLa)sMaxLa=p[0]; if(p[1]<sMinLo)sMinLo=p[1]; if(p[1]>sMaxLo)sMaxLo=p[1]; });
+  const hits=[];
+  rcUnits().forEach(u=>{
+    let hit=false;
+    for(let k=0;k<u.idx.length && !hit;k++){
+      const polys=rcData.v[u.idx[k]].polys;
+      for(let m=0;m<polys.length && !hit;m++){
+        const ring=polys[m][0];
+        let bb=ring._bb;
+        if(!bb){ bb=[Infinity,-Infinity,Infinity,-Infinity]; ring.forEach(p=>{ if(p[0]<bb[0])bb[0]=p[0]; if(p[0]>bb[1])bb[1]=p[0]; if(p[1]<bb[2])bb[2]=p[1]; if(p[1]>bb[3])bb[3]=p[1]; }); ring._bb=bb; }
+        if(bb[1]<sMinLa||bb[0]>sMaxLa||bb[3]<sMinLo||bb[2]>sMaxLo) continue;
+        if(ring.some(p=>rcPip(p,shape)) || shape.some(p=>rcPip(p,ring))){ hit=true; break; }
+        for(let a=0;a<ring.length && !hit;a++){
+          const a2=ring[(a+1)%ring.length];
+          for(let s=0;s<shape.length;s++){ if(rcSegX(ring[a],a2,shape[s],shape[(s+1)%shape.length])){ hit=true; break; } }
+        }
+      }
+    }
+    if(hit) hits.push(u.mid);
+  });
+  return hits;
+}
+function rcSelectShape(shape, remove){
+  const hits=rcShapeHits(shape);
+  const changed=hits.filter(m=>remove?rcSel.has(m):!rcSel.has(m));
+  changed.forEach(m=>{ if(remove) rcSel.delete(m); else rcSel.add(m); });
+  changed.forEach(rcRestyleUnit); rcUpdateSelInfo();
+  toast(changed.length+' objeto'+(changed.length!==1?'s':'')+(remove?' quitado'+(changed.length!==1?'s':'')+' de la selección':' agregado'+(changed.length!==1?'s':'')+' a la selección'),'ok');
+}
+
+const RC_TOOL_HINT={ click:'Clic en una manzana para seleccionarla (otro clic la deselecciona).',
+  box:'Arrastrá un rectángulo: selecciona lo que toca. Ctrl al soltar = quitar de la selección. Para mover el mapa volvé a “Clic”.',
+  poly:'Clic = vértice · clic derecho o doble clic = terminar · Enter = terminar · Esc = cancelar · Ctrl al terminar = quitar.' };
+function rcPolyCancel(){ rcPolyPts=[]; if(rcPolyLayer){ try{ map.removeLayer(rcPolyLayer); }catch(e){} rcPolyLayer=null; } }
+function rcSetTool(t){
+  rcPolyCancel();
   if(rcBoxRect){ try{ map.removeLayer(rcBoxRect); }catch(e){} rcBoxRect=null; }
-  if(typeof map!=='undefined' && map){ map.dragging.enable(); map.getContainer().style.cursor=''; }
-  const b=document.getElementById('btnRcBox'); if(b) b.style.background='';
+  rcTool=t;
+  if(typeof map==='undefined' || !map) return;
+  if(t==='box') map.dragging.disable(); else map.dragging.enable();
+  if(t==='poly') map.doubleClickZoom.disable(); else map.doubleClickZoom.enable();
+  map.getContainer().style.cursor=(t==='click')?'':'crosshair';
+  [['click','btnRcToolClick'],['box','btnRcToolBox'],['poly','btnRcToolPoly']].forEach(([k,id])=>{ const b=document.getElementById(id); if(b) b.style.background=(k===t)?'#fde68a':''; });
+  const h=document.getElementById('rcToolHint'); if(h) h.textContent=RC_TOOL_HINT[t];
 }
-function rcBoxToggle(){
-  if(!rcEdit) return;
-  if(rcBoxMode){ rcBoxOff(); return; }
-  rcBoxMode=true; map.dragging.disable(); map.getContainer().style.cursor='crosshair';
-  document.getElementById('btnRcBox').style.background='#fde68a';
-  toast('▭ Arrastrá en el mapa para seleccionar manzanas','ok');
+function rcBoxOff(){ rcSetTool('click'); }   // vuelve a la herramienta Clic y deja el mapa arrastrable
+
+function rcPolyAdd(ll){
+  if(!rcEdit||rcTool!=='poly') return;
+  rcPolyPts.push([ll.lat,ll.lng]);
+  if(!rcPolyLayer) rcPolyLayer=L.polygon(rcPolyPts.map(p=>L.latLng(p)),{color:'#111827',weight:2,dashArray:'5 3',fillColor:'#f59e0b',fillOpacity:.15,interactive:false}).addTo(map);
+  else rcPolyLayer.setLatLngs(rcPolyPts.map(p=>L.latLng(p)));
 }
-function rcBoxDown(e){ if(!rcBoxMode||!rcEdit) return; rcBoxStartLL=e.latlng; rcBoxRect=L.rectangle([e.latlng,e.latlng],{color:'#111827',weight:1.5,dashArray:'5 3',fillColor:'#f59e0b',fillOpacity:.12,interactive:false}).addTo(map); }
-function rcBoxMove(e){ if(rcBoxRect) rcBoxRect.setBounds(L.latLngBounds(rcBoxStartLL,e.latlng)); }
-function rcBoxUp(){
+function rcPolyFinish(remove){
+  const pts=rcPolyPts.filter((p,i)=>i===0||p[0]!==rcPolyPts[i-1][0]||p[1]!==rcPolyPts[i-1][1]);
+  rcPolyCancel();
+  if(pts.length<3){ toast('El polígono necesita al menos 3 vértices','error'); return; }
+  rcSelectShape(pts, !!remove);
+}
+function rcBoxDown(e){ if(rcTool!=='box'||!rcEdit) return; rcBoxStartLL=e.latlng; rcBoxRect=L.rectangle([e.latlng,e.latlng],{color:'#111827',weight:1.5,dashArray:'5 3',fillColor:'#f59e0b',fillOpacity:.12,interactive:false}).addTo(map); }
+function rcMapMove(e){
+  if(rcBoxRect) rcBoxRect.setBounds(L.latLngBounds(rcBoxStartLL,e.latlng));
+  if(rcPolyLayer && rcPolyPts.length) rcPolyLayer.setLatLngs(rcPolyPts.map(p=>L.latLng(p)).concat([e.latlng]));
+}
+function rcBoxUp(e){
   if(!rcBoxRect) return;
   const b=rcBoxRect.getBounds(); map.removeLayer(rcBoxRect); rcBoxRect=null;
   rcIgnoreClickUntil=Date.now()+300;
-  const add=[]; rcUnits().forEach(u=>{ if(b.contains([u.lat,u.lon]) && !rcSel.has(u.mid)){ rcSel.add(u.mid); add.push(u.mid); } });
-  add.forEach(rcRestyleUnit); rcUpdateSelInfo(); rcBoxOff();
-  toast(add.length+' manzana'+(add.length!==1?'s':'')+' agregada'+(add.length!==1?'s':'')+' a la selección','ok');
+  const s=b.getSouth(), n=b.getNorth(), w=b.getWest(), ea=b.getEast();
+  if(n-s<1e-6 && ea-w<1e-6) return;
+  rcSelectShape([[s,w],[n,w],[n,ea],[s,ea]], !!(e.originalEvent && e.originalEvent.ctrlKey));
 }
 
 function rcMoveMids(mids){
@@ -3559,7 +3630,11 @@ async function rcDownloadKmz(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('rcComuna').addEventListener('change', rcOnComunaChange);
   map.on('zoomend', rcUpdateLabels);
-  map.on('mousedown', rcBoxDown); map.on('mousemove', rcBoxMove); map.on('mouseup', rcBoxUp);
+  map.on('mousedown', rcBoxDown); map.on('mousemove', rcMapMove); map.on('mouseup', rcBoxUp);
+  map.on('click', e=>{ if(rcEdit && rcTool==='poly') rcPolyAdd(e.latlng); });
+  map.on('contextmenu', e=>{ if(rcEdit && rcTool==='poly' && rcPolyPts.length) rcPolyFinish(e.originalEvent.ctrlKey); });
+  map.on('dblclick', e=>{ if(rcEdit && rcTool==='poly' && rcPolyPts.length) rcPolyFinish(e.originalEvent.ctrlKey); });
+  document.addEventListener('keydown', e=>{ if(!rcEdit||rcTool!=='poly'||!rcPolyPts.length) return; if(e.key==='Escape') rcPolyCancel(); else if(e.key==='Enter') rcPolyFinish(e.ctrlKey); });
   document.getElementById('rcSize').addEventListener('input', rcUpdateHint);
   document.getElementById('btnRcDividir').addEventListener('click', rcDividir);
   document.getElementById('btnRcKml').addEventListener('click', ()=>rcDownloadKml());
@@ -3568,7 +3643,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnRcClear').addEventListener('click', rcClear);
   document.getElementById('btnUndoRecorridos').addEventListener('click', undoRecorridos);
   document.getElementById('btnRcEdit').addEventListener('click', rcToggleEdit);
-  document.getElementById('btnRcBox').addEventListener('click', rcBoxToggle);
+  document.getElementById('btnRcToolClick').addEventListener('click', ()=>rcSetTool('click'));
+  document.getElementById('btnRcToolBox').addEventListener('click', ()=>rcSetTool('box'));
+  document.getElementById('btnRcToolPoly').addEventListener('click', ()=>rcSetTool('poly'));
   document.getElementById('btnRcSelClear').addEventListener('click', rcSelClear);
   document.getElementById('btnRcMove').addEventListener('click', rcMoveSel);
   document.getElementById('btnRcRenum').addEventListener('click', rcRenumber);
