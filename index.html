@@ -511,8 +511,8 @@
           <div class="section-title">⚙️ Parámetros</div>
           <div class="params-grid">
             <div class="param-field">
-              <label>Veredas por recorrido</label>
-              <input type="number" id="rcSize" value="230" min="20" max="3000">
+              <label>Manzanas por recorrido</label>
+              <input type="number" id="rcSize" value="10" min="3" max="200">
               <div class="hint" id="rcSizeHint">—</div>
             </div>
             <div class="param-field">
@@ -540,7 +540,7 @@
           </div>
         </div>
         <div class="street-info" style="display:block;background:#f9fafb;border-color:var(--border);color:var(--muted);font-size:11.5px;line-height:1.5">
-          💡 Divide la comuna en recorridos compactos (cuadrantes) agrupando manzanas completas, y los numera de forma consecutiva en zigzag desde el sur. El KML sale en una sola capa (un elemento por recorrido) y el CSV asigna cada <b>clave de vereda</b> a su recorrido.
+          💡 Divide la comuna en recorridos compactos (cuadrantes) con la misma cantidad de manzanas, sin partir ninguna, y los numera de forma consecutiva: cada recorrido queda pegado al anterior. El KML sale en una sola capa (un elemento por recorrido) y el CSV asigna cada <b>clave de vereda</b> a su recorrido.
         </div>
       </div><!-- /panel-recorridos -->
     </div>
@@ -3091,10 +3091,10 @@ function undoEspacios(){
 /* =================================================================== */
 
 /* ============ RECORRIDOS POR COMUNA (cuadrantes automáticos) ============ */
-// Divide una comuna en recorridos compactos agrupando MANZANAS completas y los numera de
-// forma consecutiva en zigzag (franjas de sur a norte, alternando oeste→este / este→oeste).
+// Divide una comuna en recorridos compactos de ~M manzanas completas, parejos y numerados de
+// forma consecutiva (ver rcPartition).
 // Los datos de veredas viven en data/veredas/cNN.json.gz y se bajan solo para la comuna elegida.
-let rcData=null, rcComuna=null, rcAssign=null, rcResult=[], rcRenderer=null;
+let rcData=null, rcComuna=null, rcAssign=null, rcResult=[], rcRenderer=null, rcLabels=[];
 const rcCache=new Map(), rcUndoStack=[];
 const RC_SUELTA=1000000; // mid >= esto: vereda sin manzana real (clave 999), cuenta como unidad propia
 
@@ -3117,52 +3117,95 @@ async function rcFetchComuna(n){
   return data;
 }
 
-// Franjas horizontales de igual cantidad de veredas (sur→norte); cada franja se corta en celdas
-// de igual cantidad (según x). Las manzanas nunca se parten. Devuelve, por vereda, el índice de
-// recorrido en orden de numeración (0..K-1).
-function rcPartition(v, S){
+// Divide la comuna en K recorridos de igual cantidad de manzanas (K = manzanas / M) cortando el
+// mapa en bloques compactos: se parte recursivamente el conjunto de manzanas por su eje más largo,
+// repartiendo el peso en proporción. Las manzanas nunca se parten (las veredas sin manzana real
+// pesan poco). Después se numeran recorriendo el árbol: cada recorrido queda pegado al anterior.
+// Devuelve, por vereda, el índice de recorrido en orden de numeración (0..K-1).
+function rcWeightTotal(){
+  if(rcData._w==null) rcData._w=rcUnitsOf(rcData.v).reduce((s,u)=>s+u.w,0);
+  return rcData._w;
+}
+function rcUnitsOf(v){
   const units=new Map();
-  v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={n:0,sx:0,sy:0,idx:[]}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
+  v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={mid:d.mid,n:0,sx:0,sy:0,idx:[],w:d.mid>=RC_SUELTA?0.1:1}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
   const arr=[...units.values()];
   const kx=Math.cos(v[0].lat*Math.PI/180)*111320, ky=110574;
-  let minx=Infinity,maxx=-Infinity,miny=Infinity,maxy=-Infinity;
-  arr.forEach(u=>{ u.x=u.sx/u.n*kx; u.y=u.sy/u.n*ky; if(u.x<minx)minx=u.x; if(u.x>maxx)maxx=u.x; if(u.y<miny)miny=u.y; if(u.y>maxy)maxy=u.y; });
-  const W=v.length, k=Math.max(1,Math.round(W/S));
-  const R=Math.max(1,Math.min(k,Math.round(Math.sqrt(k*Math.max(1,maxy-miny)/Math.max(1,maxx-minx)))));
-  arr.sort((a,b)=>a.y-b.y);
-  const strips=Array.from({length:R},()=>[]);
-  let cum=0;
-  arr.forEach(u=>{ strips[Math.min(R-1,Math.floor((cum+u.n/2)/(W/R)))].push(u); cum+=u.n; });
+  arr.forEach(u=>{ u.x=u.sx/u.n*kx; u.y=u.sy/u.n*ky; });
+  return arr;
+}
+function rcPartition(v, M){
+  const arr=rcUnitsOf(v);
+  const W=arr.reduce((s,u)=>s+u.w,0);
+  const k=Math.max(1,Math.round(W/M));
+  const build=(us,kk)=>{
+    let sw=0,sx=0,sy=0,minx=Infinity,maxx=-Infinity,miny=Infinity,maxy=-Infinity;
+    us.forEach(u=>{ sw+=u.w; sx+=u.x*u.w; sy+=u.y*u.w; if(u.x<minx)minx=u.x; if(u.x>maxx)maxx=u.x; if(u.y<miny)miny=u.y; if(u.y>maxy)maxy=u.y; });
+    const node={cx:sx/sw, cy:sy/sw};
+    if(kk<=1||us.length<=1){ node.units=us; return node; }
+    const axis=(maxx-minx)>=(maxy-miny)?'x':'y';
+    const s=us.slice().sort((a,b)=>a[axis]-b[axis]);
+    const kl=Math.floor(kk/2), target=sw*kl/kk;
+    let acc=0, cut=1;
+    for(let i=0;i<s.length;i++){ if(acc+s[i].w/2>=target){ cut=Math.max(1,i); break; } acc+=s[i].w; cut=i+1; }
+    cut=Math.min(Math.max(1,cut),s.length-1);
+    node.a=build(s.slice(0,cut),kl); node.b=build(s.slice(cut),kk-kl);
+    return node;
+  };
+  const root=build(arr,k);
+  const order=[];
+  const walk=(node,pos)=>{
+    if(node.units){ order.push(node.units); return [node.cx,node.cy]; }
+    const da=Math.hypot(node.a.cx-pos[0],node.a.cy-pos[1]), db=Math.hypot(node.b.cx-pos[0],node.b.cy-pos[1]);
+    const f=da<=db?node.a:node.b, s=da<=db?node.b:node.a;
+    return walk(s, walk(f,pos));
+  };
+  walk(root,[Math.min(...arr.map(u=>u.x)), Math.min(...arr.map(u=>u.y))]);
   const assign=new Int32Array(v.length).fill(-1);
-  let next=0;
-  strips.forEach((st,si)=>{
-    if(!st.length) return;
-    const c=Math.max(1, Math.round(k*(si+1)/R)-Math.round(k*si/R));
-    st.sort((a,b)=> si%2===0 ? a.x-b.x : b.x-a.x);
-    const sw=st.reduce((s,u)=>s+u.n,0);
-    let acc=0; const cellOf=new Map();
-    st.forEach(u=>{ const ci=Math.min(c-1,Math.floor((acc+u.n/2)/(sw/c))); acc+=u.n; if(!cellOf.has(ci)) cellOf.set(ci,[]); cellOf.get(ci).push(u); });
-    [...cellOf.keys()].sort((a,b)=>a-b).forEach(ci=>{ cellOf.get(ci).forEach(u=>u.idx.forEach(i=>{ assign[i]=next; })); next++; });
-  });
+  order.forEach((us,ri)=>us.forEach(u=>u.idx.forEach(i=>{ assign[i]=ri; })));
   return assign;
+}
+
+const RC_COLORS=[...INSP_COLORS,'#0d9488','#be123c'];
+// Colorea los recorridos para que dos vecinos no compartan color (greedy sobre los 8 centroides más cercanos)
+function rcAssignColors(res){
+  const kx=Math.cos(res[0].lat*Math.PI/180);
+  const xy=res.map(r=>[r.lon*kx, r.lat]);
+  const nb=res.map(()=>new Set());
+  res.forEach((_,i)=>{
+    xy.map((p,j)=>[j===i?Infinity:Math.hypot(p[0]-xy[i][0],p[1]-xy[i][1]),j]).sort((a,b)=>a[0]-b[0]).slice(0,8).forEach(([,j])=>{ nb[i].add(j); nb[j].add(i); });
+  });
+  res.forEach((r,i)=>{
+    const cnt=new Map(); nb[i].forEach(j=>{ const c=res[j].color; if(c) cnt.set(c,(cnt.get(c)||0)+1); });
+    r.color=RC_COLORS.find(c=>!cnt.has(c)) || RC_COLORS.slice().sort((a,b)=>(cnt.get(a)||0)-(cnt.get(b)||0))[0];
+  });
 }
 
 function rcBuildResult(assign, start){
   let K=0; for(let i=0;i<assign.length;i++) if(assign[i]+1>K) K=assign[i]+1;
-  const res=Array.from({length:K},(_,i)=>({ num:start+i, idxs:[], color:INSP_COLORS[i%INSP_COLORS.length] }));
+  const res=Array.from({length:K},(_,i)=>({ num:start+i, idxs:[] }));
   for(let i=0;i<assign.length;i++) if(assign[i]>=0) res[assign[i]].idxs.push(i);
   res.forEach(r=>{
     const mz=new Set(), bs=new Set(); let sl=0, so=0; r.polys=[];
     r.idxs.forEach(i=>{ const d=rcData.v[i]; if(d.mid<RC_SUELTA) mz.add(d.mid); sl+=d.lat; so+=d.lon; if(d.bar>=0) bs.add(rcData.b[d.bar]); d.polys.forEach(p=>r.polys.push(p)); });
     r.manz=mz.size; r.lat=sl/r.idxs.length; r.lon=so/r.idxs.length; r.barrios=[...bs];
   });
+  if(res.length) rcAssignColors(res);
   return res;
 }
 
 function rcGetRenderer(){ if(!rcRenderer) rcRenderer=L.canvas({padding:.5}); return rcRenderer; }
 
+// Los números de los recorridos se muestran al acercarse (con ~100 recorridos tapan el mapa)
+function rcUpdateLabels(){
+  if(currentTab!=='recorridos') return;
+  const show=map.getZoom()>=14 || rcResult.length<=40;
+  rcLabels.forEach(m=>{ if(show){ if(!layerGroup.hasLayer(m)) layerGroup.addLayer(m); } else if(layerGroup.hasLayer(m)) layerGroup.removeLayer(m); });
+}
+
 function rcRedraw(){
   layerGroup.clearLayers();
+  rcLabels=[];
   if(!rcData) return;
   const rend=rcGetRenderer();
   const bounds=[];
@@ -3176,10 +3219,11 @@ function rcRedraw(){
       pg.bindPopup('<b>Recorrido '+r.num+'</b><br>'+r.idxs.length+' veredas · '+r.manz+' manzanas'+(r.barrios.length?'<br>'+esc(r.barrios.join(', ')):''));
       bounds.push(pg.getBounds());
       const icon=L.divIcon({className:'', html:'<div class="mk-num" style="background:'+r.color+';min-width:26px;width:auto;padding:0 5px;border-radius:12px">'+r.num+'</div>', iconSize:[30,22], iconAnchor:[15,11]});
-      L.marker([r.lat,r.lon],{icon,interactive:false,keyboard:false}).addTo(layerGroup);
+      rcLabels.push(L.marker([r.lat,r.lon],{icon,interactive:false,keyboard:false}));
     });
   }
   if(bounds.length){ const b=bounds.reduce((a,x)=>a.extend(x), L.latLngBounds(bounds[0].getSouthWest(),bounds[0].getNorthEast())); map.fitBounds(b,{padding:[30,30],animate:false}); }
+  rcUpdateLabels();
 }
 
 function rcRenderList(){
@@ -3187,8 +3231,8 @@ function rcRenderList(){
   rcResult.forEach((r,i)=>{
     const item=document.createElement('div'); item.className='kml-item';
     item.innerHTML='<span class="kml-num" style="background:'+r.color+'">'+r.num+'</span>'+
-      '<span class="kml-range">'+r.idxs.length+' veredas</span>'+
-      '<span class="kml-cuadras">'+r.manz+' manz.</span>'+
+      '<span class="kml-range">'+r.manz+' manzanas</span>'+
+      '<span class="kml-cuadras">'+r.idxs.length+' veredas</span>'+
       '<button class="dl-btn" title="Descargar KML de este recorrido">⬇</button>';
     item.querySelector('.dl-btn').addEventListener('click', e=>{ e.stopPropagation(); rcDownloadKml([r], 'recorrido_'+r.num+'_comuna_'+String(rcComuna).padStart(2,'0')+'.kml'); });
     item.addEventListener('click', ()=>{ const ll=[]; r.polys.forEach(p=>p[0].forEach(pt=>ll.push(pt))); if(ll.length) map.fitBounds(L.latLngBounds(ll),{padding:[40,40],maxZoom:18}); });
@@ -3201,7 +3245,7 @@ function rcRenderList(){
 function rcUpdateHint(){
   const hint=document.getElementById('rcSizeHint');
   const s=parseInt(document.getElementById('rcSize').value)||0;
-  hint.textContent = (rcData && s>0) ? '≈ '+Math.max(1,Math.round(rcData.v.length/s))+' recorridos' : '—';
+  hint.textContent = (rcData && s>0) ? '≈ '+Math.max(1,Math.round(rcWeightTotal()/s))+' recorridos' : '—';
 }
 
 function rcShowComuna(){
@@ -3258,7 +3302,7 @@ async function rcOnComunaChange(){
 function rcDividir(){
   if(!rcData) return;
   const S=parseInt(document.getElementById('rcSize').value);
-  if(!(S>=20)){ toast('Poné al menos 20 veredas por recorrido','error'); return; }
+  if(!(S>=3)){ toast('Poné al menos 3 manzanas por recorrido','error'); return; }
   const start=parseInt(document.getElementById('rcStart').value); const st=isNaN(start)?1:start;
   rcPushUndo();
   rcAssign=rcPartition(rcData.v, S);
@@ -3314,6 +3358,7 @@ function rcDownloadCsv(){
 
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('rcComuna').addEventListener('change', rcOnComunaChange);
+  map.on('zoomend', rcUpdateLabels);
   document.getElementById('rcSize').addEventListener('input', rcUpdateHint);
   document.getElementById('btnRcDividir').addEventListener('click', rcDividir);
   document.getElementById('btnRcKml').addEventListener('click', ()=>rcDownloadKml());
