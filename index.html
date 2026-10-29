@@ -85,6 +85,7 @@
   .tab-btn { flex: 1; padding: 9px 8px; border: 1.5px solid var(--border); background: #f9fafb; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted); transition: all .15s; font-family: var(--font); }
   .tab-btn:hover { border-color: var(--accent); }
   .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tabs .tab-btn { min-width: 0; padding: 9px 3px; font-size: 11px; }
   .tab-panel { display: flex; flex-direction: column; gap: 14px; }
   .seg-label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
   .file-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; border: 2px dashed var(--border); border-radius: 10px; padding: 22px 14px; text-align: center; cursor: pointer; transition: all .15s; background: #f9fafb; }
@@ -122,6 +123,7 @@
         <button class="tab-btn" data-tab="entre">📍 Por Entrecalles</button>
         <button class="tab-btn" data-tab="poligono">🔷 Polígono</button>
         <button class="tab-btn" data-tab="espacios">🌳 Esp. Verdes</button>
+        <button class="tab-btn" data-tab="recorridos">🧩 Cuadrantes</button>
       </div>
       <div class="tab-panel" id="panel-cuadras">
       <button class="btn-secondary" id="btnUndoCuadras" disabled style="width:100%;margin-bottom:4px">↩️ Deshacer último cambio</button>
@@ -487,6 +489,60 @@
           <div class="report" id="joinResultReport" style="display:none"></div>
         </div>
       </div><!-- /panel-espacios -->
+
+      <div class="tab-panel" id="panel-recorridos" style="display:none">
+        <button class="btn-secondary" id="btnUndoRecorridos" disabled style="width:100%;margin-bottom:4px">↩️ Deshacer último cambio</button>
+        <div>
+          <div class="section-title">🏙️ Comuna</div>
+          <select class="col-select" id="rcComuna">
+            <option value="">— Elegí una comuna —</option>
+            <option value="1">Comuna 1</option><option value="2">Comuna 2</option><option value="3">Comuna 3</option>
+            <option value="4">Comuna 4</option><option value="5">Comuna 5</option><option value="6">Comuna 6</option>
+            <option value="7">Comuna 7</option><option value="8">Comuna 8</option><option value="9">Comuna 9</option>
+            <option value="10">Comuna 10</option><option value="11">Comuna 11</option><option value="12">Comuna 12</option>
+            <option value="13">Comuna 13</option><option value="14">Comuna 14</option><option value="15">Comuna 15</option>
+          </select>
+        </div>
+        <div class="street-info" id="rcInfo" style="display:none">
+          <div class="si-name" id="rcInfoName">—</div>
+          <div class="si-meta" id="rcInfoMeta">—</div>
+        </div>
+        <div id="rcParams" style="display:none">
+          <div class="section-title">⚙️ Parámetros</div>
+          <div class="params-grid">
+            <div class="param-field">
+              <label>Veredas por recorrido</label>
+              <input type="number" id="rcSize" value="230" min="20" max="3000">
+              <div class="hint" id="rcSizeHint">—</div>
+            </div>
+            <div class="param-field">
+              <label>Numerar desde</label>
+              <input type="number" id="rcStart" value="1" min="0" max="99999">
+              <div class="hint">primer recorrido</div>
+            </div>
+          </div>
+          <button class="btn-primary" id="btnRcDividir" style="margin-top:10px"><span>🧩</span> Dividir en recorridos</button>
+        </div>
+        <div id="rcResultSection" style="display:none">
+          <div class="section-title" id="rcResultTitle">📦 Recorridos generados</div>
+          <div class="kml-list" id="rcList"></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkRcColorUnico"> Usar un solo color para todos los recorridos
+              <input type="color" id="rcColorPicker" value="#0055a5" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn-secondary" id="btnRcKml">⬇ Descargar KML</button>
+            <button class="btn-secondary" id="btnRcCsv">⬇ Descargar CSV</button>
+          </div>
+          <div class="actions">
+            <button class="btn-secondary" id="btnRcClear">✕ Limpiar</button>
+          </div>
+        </div>
+        <div class="street-info" style="display:block;background:#f9fafb;border-color:var(--border);color:var(--muted);font-size:11.5px;line-height:1.5">
+          💡 Divide la comuna en recorridos compactos (cuadrantes) agrupando manzanas completas, y los numera de forma consecutiva en zigzag desde el sur. El KML sale en una sola capa (un elemento por recorrido) y el CSV asigna cada <b>clave de vereda</b> a su recorrido.
+        </div>
+      </div><!-- /panel-recorridos -->
     </div>
   </div>
   <div class="map-area">
@@ -1157,6 +1213,7 @@ function switchTab(tab){
   document.getElementById('panel-entre').style.display    = tab==='entre'   ? 'flex' : 'none';
   document.getElementById('panel-poligono').style.display = tab==='poligono'? 'flex' : 'none';
   document.getElementById('panel-espacios').style.display = tab==='espacios'? 'flex' : 'none';
+  document.getElementById('panel-recorridos').style.display = tab==='recorridos'? 'flex' : 'none';
   layerGroup.clearLayers();
   document.getElementById('mapLegend').style.display='none';
   // Re-preview lo que corresponda a la pestaña activa
@@ -1187,6 +1244,8 @@ function switchTab(tab){
     const allPts=evZonas.concat(evLoteResults.filter(r=>r.found)).flatMap(z=>evLatLngs(z.esp))
       .concat(evDrawnZonas.flatMap(z=>z.verts.map(v=>[v.lat,v.lon])), evPolyVerts.map(v=>[v.lat,v.lon]));
     if(allPts.length) fitBoundsOnPoints(allPts);
+  } else if(tab==='recorridos'){
+    rcRedraw();
   }
 }
 
@@ -3029,6 +3088,240 @@ function undoEspacios(){
   document.getElementById('btnUndoEspacios').disabled = !evUndoStack.length;
   toast('↩️ Deshecho','ok');
 }
+/* =================================================================== */
+
+/* ============ RECORRIDOS POR COMUNA (cuadrantes automáticos) ============ */
+// Divide una comuna en recorridos compactos agrupando MANZANAS completas y los numera de
+// forma consecutiva en zigzag (franjas de sur a norte, alternando oeste→este / este→oeste).
+// Los datos de veredas viven en data/veredas/cNN.json.gz y se bajan solo para la comuna elegida.
+let rcData=null, rcComuna=null, rcAssign=null, rcResult=[], rcRenderer=null;
+const rcCache=new Map(), rcUndoStack=[];
+const RC_SUELTA=1000000; // mid >= esto: vereda sin manzana real (clave 999), cuenta como unidad propia
+
+function rcDecodeRing(flat){
+  const out=[]; let x=flat[0], y=flat[1]; out.push([y/1e5, x/1e5]);
+  for(let i=2;i<flat.length;i+=2){ x+=flat[i]; y+=flat[i+1]; out.push([y/1e5, x/1e5]); }
+  return out;
+}
+async function rcFetchComuna(n){
+  if(rcCache.has(n)) return rcCache.get(n);
+  const resp=await fetch('data/veredas/c'+String(n).padStart(2,'0')+'.json.gz');
+  if(!resp.ok) throw new Error('No se pudo bajar la comuna '+n+' (HTTP '+resp.status+')');
+  const buf=new Uint8Array(await resp.arrayBuffer());
+  let text;
+  if(buf[0]===0x1f && buf[1]===0x8b) text=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  else text=new TextDecoder().decode(buf);
+  const raw=JSON.parse(text);
+  const data={ c:raw.c, b:raw.b, v:raw.v.map(r=>({ clave:r[0], esq:r[1], mid:r[2], bar:r[3], lon:r[4], lat:r[5], polys:r[6].map(p=>p.map(rcDecodeRing)) })) };
+  rcCache.set(n,data);
+  return data;
+}
+
+// Franjas horizontales de igual cantidad de veredas (sur→norte); cada franja se corta en celdas
+// de igual cantidad (según x). Las manzanas nunca se parten. Devuelve, por vereda, el índice de
+// recorrido en orden de numeración (0..K-1).
+function rcPartition(v, S){
+  const units=new Map();
+  v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={n:0,sx:0,sy:0,idx:[]}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
+  const arr=[...units.values()];
+  const kx=Math.cos(v[0].lat*Math.PI/180)*111320, ky=110574;
+  let minx=Infinity,maxx=-Infinity,miny=Infinity,maxy=-Infinity;
+  arr.forEach(u=>{ u.x=u.sx/u.n*kx; u.y=u.sy/u.n*ky; if(u.x<minx)minx=u.x; if(u.x>maxx)maxx=u.x; if(u.y<miny)miny=u.y; if(u.y>maxy)maxy=u.y; });
+  const W=v.length, k=Math.max(1,Math.round(W/S));
+  const R=Math.max(1,Math.min(k,Math.round(Math.sqrt(k*Math.max(1,maxy-miny)/Math.max(1,maxx-minx)))));
+  arr.sort((a,b)=>a.y-b.y);
+  const strips=Array.from({length:R},()=>[]);
+  let cum=0;
+  arr.forEach(u=>{ strips[Math.min(R-1,Math.floor((cum+u.n/2)/(W/R)))].push(u); cum+=u.n; });
+  const assign=new Int32Array(v.length).fill(-1);
+  let next=0;
+  strips.forEach((st,si)=>{
+    if(!st.length) return;
+    const c=Math.max(1, Math.round(k*(si+1)/R)-Math.round(k*si/R));
+    st.sort((a,b)=> si%2===0 ? a.x-b.x : b.x-a.x);
+    const sw=st.reduce((s,u)=>s+u.n,0);
+    let acc=0; const cellOf=new Map();
+    st.forEach(u=>{ const ci=Math.min(c-1,Math.floor((acc+u.n/2)/(sw/c))); acc+=u.n; if(!cellOf.has(ci)) cellOf.set(ci,[]); cellOf.get(ci).push(u); });
+    [...cellOf.keys()].sort((a,b)=>a-b).forEach(ci=>{ cellOf.get(ci).forEach(u=>u.idx.forEach(i=>{ assign[i]=next; })); next++; });
+  });
+  return assign;
+}
+
+function rcBuildResult(assign, start){
+  let K=0; for(let i=0;i<assign.length;i++) if(assign[i]+1>K) K=assign[i]+1;
+  const res=Array.from({length:K},(_,i)=>({ num:start+i, idxs:[], color:INSP_COLORS[i%INSP_COLORS.length] }));
+  for(let i=0;i<assign.length;i++) if(assign[i]>=0) res[assign[i]].idxs.push(i);
+  res.forEach(r=>{
+    const mz=new Set(), bs=new Set(); let sl=0, so=0; r.polys=[];
+    r.idxs.forEach(i=>{ const d=rcData.v[i]; if(d.mid<RC_SUELTA) mz.add(d.mid); sl+=d.lat; so+=d.lon; if(d.bar>=0) bs.add(rcData.b[d.bar]); d.polys.forEach(p=>r.polys.push(p)); });
+    r.manz=mz.size; r.lat=sl/r.idxs.length; r.lon=so/r.idxs.length; r.barrios=[...bs];
+  });
+  return res;
+}
+
+function rcGetRenderer(){ if(!rcRenderer) rcRenderer=L.canvas({padding:.5}); return rcRenderer; }
+
+function rcRedraw(){
+  layerGroup.clearLayers();
+  if(!rcData) return;
+  const rend=rcGetRenderer();
+  const bounds=[];
+  if(!rcResult.length){
+    const polys=[]; rcData.v.forEach(d=>d.polys.forEach(p=>polys.push(p)));
+    const pg=L.polygon(polys,{renderer:rend,color:'#64748b',weight:1,fillColor:'#94a3b8',fillOpacity:.45}).addTo(layerGroup);
+    bounds.push(pg.getBounds());
+  } else {
+    rcResult.forEach(r=>{
+      const pg=L.polygon(r.polys,{renderer:rend,color:r.color,weight:1,fillColor:r.color,fillOpacity:.65}).addTo(layerGroup);
+      pg.bindPopup('<b>Recorrido '+r.num+'</b><br>'+r.idxs.length+' veredas · '+r.manz+' manzanas'+(r.barrios.length?'<br>'+esc(r.barrios.join(', ')):''));
+      bounds.push(pg.getBounds());
+      const icon=L.divIcon({className:'', html:'<div class="mk-num" style="background:'+r.color+';min-width:26px;width:auto;padding:0 5px;border-radius:12px">'+r.num+'</div>', iconSize:[30,22], iconAnchor:[15,11]});
+      L.marker([r.lat,r.lon],{icon,interactive:false,keyboard:false}).addTo(layerGroup);
+    });
+  }
+  if(bounds.length){ const b=bounds.reduce((a,x)=>a.extend(x), L.latLngBounds(bounds[0].getSouthWest(),bounds[0].getNorthEast())); map.fitBounds(b,{padding:[30,30],animate:false}); }
+}
+
+function rcRenderList(){
+  const list=document.getElementById('rcList'); list.innerHTML='';
+  rcResult.forEach((r,i)=>{
+    const item=document.createElement('div'); item.className='kml-item';
+    item.innerHTML='<span class="kml-num" style="background:'+r.color+'">'+r.num+'</span>'+
+      '<span class="kml-range">'+r.idxs.length+' veredas</span>'+
+      '<span class="kml-cuadras">'+r.manz+' manz.</span>'+
+      '<button class="dl-btn" title="Descargar KML de este recorrido">⬇</button>';
+    item.querySelector('.dl-btn').addEventListener('click', e=>{ e.stopPropagation(); rcDownloadKml([r], 'recorrido_'+r.num+'_comuna_'+String(rcComuna).padStart(2,'0')+'.kml'); });
+    item.addEventListener('click', ()=>{ const ll=[]; r.polys.forEach(p=>p[0].forEach(pt=>ll.push(pt))); if(ll.length) map.fitBounds(L.latLngBounds(ll),{padding:[40,40],maxZoom:18}); });
+    list.appendChild(item);
+  });
+  document.getElementById('rcResultTitle').textContent='📦 '+rcResult.length+' recorrido'+(rcResult.length!==1?'s':'')+' generado'+(rcResult.length!==1?'s':'');
+  document.getElementById('rcResultSection').style.display=rcResult.length?'block':'none';
+}
+
+function rcUpdateHint(){
+  const hint=document.getElementById('rcSizeHint');
+  const s=parseInt(document.getElementById('rcSize').value)||0;
+  hint.textContent = (rcData && s>0) ? '≈ '+Math.max(1,Math.round(rcData.v.length/s))+' recorridos' : '—';
+}
+
+function rcShowComuna(){
+  const has=!!rcData;
+  document.getElementById('rcInfo').style.display=has?'block':'none';
+  document.getElementById('rcParams').style.display=has?'block':'none';
+  if(has){
+    document.getElementById('rcInfoName').textContent='COMUNA '+rcData.c;
+    const mz=new Set(rcData.v.filter(d=>d.mid<RC_SUELTA).map(d=>d.mid)).size;
+    document.getElementById('rcInfoMeta').textContent=rcData.v.length.toLocaleString('es-AR')+' veredas · '+mz.toLocaleString('es-AR')+' manzanas · '+rcData.b.join(', ');
+  }
+  rcUpdateHint();
+}
+
+function rcPushUndo(){
+  rcUndoStack.push({ comuna:rcComuna, size:document.getElementById('rcSize').value, start:document.getElementById('rcStart').value, assign:rcAssign?Array.from(rcAssign):null });
+  if(rcUndoStack.length>UNDO_MAX) rcUndoStack.shift();
+  const b=document.getElementById('btnUndoRecorridos'); if(b) b.disabled=false;
+}
+function rcApplyState(s){
+  rcComuna=s.comuna; rcData=s.comuna?rcCache.get(s.comuna):null;
+  document.getElementById('rcComuna').value=s.comuna?String(s.comuna):'';
+  document.getElementById('rcSize').value=s.size; document.getElementById('rcStart').value=s.start;
+  rcAssign=s.assign?Int32Array.from(s.assign):null;
+  rcResult=(rcData&&rcAssign)?rcBuildResult(rcAssign, parseInt(s.start)||0):[];
+  rcShowComuna(); rcRenderList(); rcRedraw();
+}
+function undoRecorridos(){
+  if(!rcUndoStack.length){ toast('Nada para deshacer','error'); return; }
+  rcApplyState(rcUndoStack.pop());
+  document.getElementById('btnUndoRecorridos').disabled=!rcUndoStack.length;
+  toast('↩️ Deshecho','ok');
+}
+
+async function rcOnComunaChange(){
+  const n=parseInt(document.getElementById('rcComuna').value)||null;
+  if(n===rcComuna) return;
+  if(!n){ rcPushUndo(); rcComuna=null; rcData=null; rcAssign=null; rcResult=[]; rcShowComuna(); rcRenderList(); rcRedraw(); return; }
+  showLoading('Cargando comuna '+n+'...');
+  try{
+    const data=await rcFetchComuna(n);
+    hideLoading();
+    rcPushUndo();
+    rcComuna=n; rcData=data; rcAssign=null; rcResult=[];
+    rcShowComuna(); rcRenderList(); rcRedraw();
+    toast('✅ Comuna '+n+': '+data.v.length.toLocaleString('es-AR')+' veredas','ok');
+  }catch(e){
+    hideLoading();
+    document.getElementById('rcComuna').value=rcComuna?String(rcComuna):'';
+    toast('❌ '+e.message+(location.protocol==='file:'?' (abrí la app desde la web, no como archivo local)':''),'error');
+  }
+}
+
+function rcDividir(){
+  if(!rcData) return;
+  const S=parseInt(document.getElementById('rcSize').value);
+  if(!(S>=20)){ toast('Poné al menos 20 veredas por recorrido','error'); return; }
+  const start=parseInt(document.getElementById('rcStart').value); const st=isNaN(start)?1:start;
+  rcPushUndo();
+  rcAssign=rcPartition(rcData.v, S);
+  rcResult=rcBuildResult(rcAssign, st);
+  rcRenderList(); rcRedraw();
+  toast('✅ '+rcResult.length+' recorridos ('+rcResult[0].num+' al '+rcResult[rcResult.length-1].num+')','ok');
+}
+
+function rcClear(){
+  if(!rcResult.length) return;
+  rcPushUndo();
+  rcAssign=null; rcResult=[];
+  rcRenderList(); rcRedraw();
+}
+
+function rcRingKml(r){ const c=r.map(p=>p[1].toFixed(5)+','+p[0].toFixed(5)+',0'); c.push(c[0]); return c.join(' '); }
+function rcPolysKml(polys){
+  return polys.map(p=>'<Polygon><outerBoundaryIs><LinearRing><coordinates>'+rcRingKml(p[0])+'</coordinates></LinearRing></outerBoundaryIs>'+
+    p.slice(1).map(h=>'<innerBoundaryIs><LinearRing><coordinates>'+rcRingKml(h)+'</coordinates></LinearRing></innerBoundaryIs>').join('')+'</Polygon>').join('');
+}
+// KML plano (sin <Folder>: Google My Maps lo importa como una sola capa), un Placemark por recorrido
+function rcBuildKml(recs){
+  const o=colorUnicoOpts('chkRcColorUnico','rcColorPicker','#0055a5');
+  let styles='', pms='';
+  recs.forEach((r,i)=>{
+    const kcol=segColorToKml(o.colorUnico?o.colorElegido:r.color);
+    styles+='    <Style id="r'+i+'"><LineStyle><color>'+kcol+'</color><width>1.5</width></LineStyle><PolyStyle><color>99'+kcol.substring(2)+'</color></PolyStyle></Style>\n';
+    const desc='Comuna '+rcData.c+(r.barrios.length?' · Barrios: '+esc(r.barrios.join(', ')):'')+'<br>'+r.idxs.length+' veredas · '+r.manz+' manzanas';
+    pms+='    <Placemark>\n      <name>Recorrido '+r.num+'</name>\n      <description><![CDATA['+desc+']]></description>\n      <styleUrl>#r'+i+'</styleUrl>\n      <MultiGeometry>'+rcPolysKml(r.polys)+'</MultiGeometry>\n    </Placemark>\n';
+  });
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Recorridos comuna '+rcData.c+' ('+recs.length+')</name>\n'+styles+pms+'  </Document>\n</kml>';
+}
+function rcDownloadKml(recs, fname){
+  if(!rcResult.length) return;
+  const kml=rcBuildKml(recs||rcResult);
+  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'});
+  const name=fname||('recorridos_comuna_'+String(rcComuna).padStart(2,'0')+'.kml');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  toast('📥 '+name+' ('+(blob.size/1048576).toFixed(1)+' MB)','ok');
+}
+function rcDownloadCsv(){
+  if(!rcResult.length) return;
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const recOf=new Int32Array(rcData.v.length).fill(-1);
+  rcResult.forEach((r,ri)=>r.idxs.forEach(i=>{ recOf[i]=ri; }));
+  const rows=['clave_vere;comuna;barrio;esquina;recorrido;lon;lat'];
+  rcData.v.forEach((d,i)=>{ rows.push([q(d.clave), rcData.c, q(d.bar>=0?rcData.b[d.bar]:''), d.esq?'S':'N', recOf[i]>=0?rcResult[recOf[i]].num:'', d.lon.toFixed(5), d.lat.toFixed(5)].join(';')); });
+  const blob=new Blob(['﻿'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const name='recorridos_comuna_'+String(rcComuna).padStart(2,'0')+'.csv';
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  toast('📥 '+name+' ('+rcData.v.length.toLocaleString('es-AR')+' veredas)','ok');
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('rcComuna').addEventListener('change', rcOnComunaChange);
+  document.getElementById('rcSize').addEventListener('input', rcUpdateHint);
+  document.getElementById('btnRcDividir').addEventListener('click', rcDividir);
+  document.getElementById('btnRcKml').addEventListener('click', ()=>rcDownloadKml());
+  document.getElementById('btnRcCsv').addEventListener('click', rcDownloadCsv);
+  document.getElementById('btnRcClear').addEventListener('click', rcClear);
+  document.getElementById('btnUndoRecorridos').addEventListener('click', undoRecorridos);
+  initColorUnicoPicker('chkRcColorUnico','rcColorPicker','recorridosKmlColorRc','#0055a5');
+});
 /* =================================================================== */
 
 function sanitize(s){return s.replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/__+/g,'_');}
