@@ -552,6 +552,7 @@
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkRcPorVereda" checked> Un elemento por vereda, con su clave (KML/KMZ más pesado)</label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkRcColorUnico"> Usar un solo color para todos los recorridos
               <input type="color" id="rcColorPicker" value="#0055a5" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
             </label>
@@ -3581,15 +3582,29 @@ function rcPolysKml(polys){
   return polys.map(p=>'<Polygon><outerBoundaryIs><LinearRing><coordinates>'+rcRingKml(p[0])+'</coordinates></LinearRing></outerBoundaryIs>'+
     p.slice(1).map(h=>'<innerBoundaryIs><LinearRing><coordinates>'+rcRingKml(h)+'</coordinates></LinearRing></innerBoundaryIs>').join('')+'</Polygon>').join('');
 }
-// KML plano (sin <Folder>: Google My Maps lo importa como una sola capa), un Placemark por recorrido
+// KML plano (sin <Folder>: Google My Maps lo importa como una sola capa). Por defecto un Placemark por
+// VEREDA con su clave_vere (nombre, descripción y ExtendedData, como el shapefile); destildado, un
+// Placemark por recorrido con la lista de claves en la descripción (archivo más liviano).
 function rcBuildKml(recs){
   const o=colorUnicoOpts('chkRcColorUnico','rcColorPicker','#0055a5');
+  const cb=document.getElementById('chkRcPorVereda'); const porVereda=!cb||cb.checked;
   let styles='', pms='';
   recs.forEach((r,i)=>{
     const kcol=segColorToKml(o.colorUnico?o.colorElegido:r.color);
     styles+='    <Style id="r'+i+'"><LineStyle><color>'+kcol+'</color><width>1.5</width></LineStyle><PolyStyle><color>99'+kcol.substring(2)+'</color></PolyStyle></Style>\n';
-    const desc='Comuna '+rcData.c+(r.barrios.length?' · Barrios: '+esc(r.barrios.join(', ')):'')+'<br>'+r.idxs.length+' veredas · '+r.manz+' manzanas';
-    pms+='    <Placemark>\n      <name>Recorrido '+r.num+'</name>\n      <description><![CDATA['+desc+']]></description>\n      <styleUrl>#r'+i+'</styleUrl>\n      <MultiGeometry>'+rcPolysKml(r.polys)+'</MultiGeometry>\n    </Placemark>\n';
+    if(porVereda){
+      r.idxs.forEach(vi=>{
+        const d=rcData.v[vi], bar=d.bar>=0?rcData.b[d.bar]:'', esq=d.esq?'S':'N';
+        const desc='<b>Clave vereda:</b> '+esc(d.clave)+'<br><b>Recorrido:</b> '+r.num+'<br><b>Comuna:</b> '+rcData.c+(bar?'<br><b>Barrio:</b> '+esc(bar):'')+'<br><b>Esquina:</b> '+esq;
+        const geom=d.polys.length>1?'<MultiGeometry>'+rcPolysKml(d.polys)+'</MultiGeometry>':rcPolysKml(d.polys);
+        pms+='    <Placemark>\n      <name>'+esc(d.clave)+'</name>\n      <description><![CDATA['+desc+']]></description>\n      <styleUrl>#r'+i+'</styleUrl>\n'+
+          '      <ExtendedData><Data name="clave_vere"><value>'+esc(d.clave)+'</value></Data><Data name="recorrido"><value>'+r.num+'</value></Data><Data name="comuna"><value>'+rcData.c+'</value></Data><Data name="barrio"><value>'+esc(bar)+'</value></Data><Data name="esquina"><value>'+esq+'</value></Data></ExtendedData>\n'+
+          '      '+geom+'\n    </Placemark>\n';
+      });
+    } else {
+      const desc='Comuna '+rcData.c+(r.barrios.length?' · Barrios: '+esc(r.barrios.join(', ')):'')+'<br>'+r.idxs.length+' veredas · '+r.manz+' manzanas<br><b>Claves de vereda:</b><br>'+r.idxs.map(vi=>esc(rcData.v[vi].clave)).join('<br>');
+      pms+='    <Placemark>\n      <name>Recorrido '+r.num+'</name>\n      <description><![CDATA['+desc+']]></description>\n      <styleUrl>#r'+i+'</styleUrl>\n      <MultiGeometry>'+rcPolysKml(r.polys)+'</MultiGeometry>\n    </Placemark>\n';
+    }
   });
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Recorridos comuna '+rcData.c+' ('+recs.length+')</name>\n'+styles+pms+'  </Document>\n</kml>';
 }
@@ -3599,7 +3614,7 @@ function rcDownloadKml(recs, fname){
   const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'});
   const name=fname||('recorridos_comuna_'+String(rcComuna).padStart(2,'0')+'.kml');
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
-  toast('📥 '+name+' ('+(blob.size/1048576).toFixed(1)+' MB)','ok');
+  toast('📥 '+name+' ('+(blob.size/1048576).toFixed(1)+' MB)'+(blob.size>5242880?' · si My Maps lo rechaza por tamaño, usá el KMZ':''),'ok');
 }
 function rcDownloadCsv(){
   if(!rcResult.length) return;
