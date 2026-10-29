@@ -526,6 +526,26 @@
         <div id="rcResultSection" style="display:none">
           <div class="section-title" id="rcResultTitle">📦 Recorridos generados</div>
           <div class="kml-list" id="rcList"></div>
+          <div id="rcEditBox" style="margin:8px 0">
+            <button class="btn-secondary" id="btnRcEdit" style="width:100%">✏️ Corregir manualmente</button>
+            <div id="rcEditTools" style="display:none;margin-top:8px">
+              <div class="street-info" style="display:block;background:#fffbeb;border-color:#fde68a;color:#92400e;font-size:11.5px;line-height:1.5">
+                Hacé <b>clic en las manzanas</b> para seleccionarlas (o usá el rectángulo), elegí el recorrido destino y tocá <b>Mover</b>. <b>Clic derecho</b> sobre una manzana toma su recorrido como destino. Con <b>Pintar</b> activado cada clic mueve la manzana directo al destino.
+              </div>
+              <div class="actions" style="margin-top:8px">
+                <button class="btn-secondary" id="btnRcBox">▭ Seleccionar con rectángulo</button>
+                <button class="btn-secondary" id="btnRcSelClear">✕ Limpiar selección</button>
+              </div>
+              <div id="rcSelInfo" style="font-size:12px;color:var(--muted);margin:6px 0">Sin selección</div>
+              <label class="seg-label">Mover la selección a</label>
+              <select class="col-select" id="rcDest"></select>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:8px 0;font-size:12px;color:var(--muted)"><input type="checkbox" id="chkRcPaint"> Pintar: mover cada manzana al hacer clic</label>
+              <button class="btn-primary" id="btnRcMove"><span>➡</span> Mover selección</button>
+              <div class="actions" style="margin-top:6px">
+                <button class="btn-secondary" id="btnRcRenum">🔢 Renumerar consecutivo</button>
+              </div>
+            </div>
+          </div>
           <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:12px;color:var(--muted)">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="chkRcColorUnico"> Usar un solo color para todos los recorridos
               <input type="color" id="rcColorPicker" value="#0055a5" style="display:none;margin-left:4px;width:28px;height:22px;padding:0;border:1px solid var(--border);border-radius:4px;cursor:pointer">
@@ -541,7 +561,7 @@
           </div>
         </div>
         <div class="street-info" style="display:block;background:#f9fafb;border-color:var(--border);color:var(--muted);font-size:11.5px;line-height:1.5">
-          💡 Divide la comuna en recorridos compactos (cuadrantes) con la misma cantidad de manzanas, sin partir ninguna, y los numera de forma consecutiva: cada recorrido queda pegado al anterior. El KML sale en una sola capa (un elemento por recorrido) y el CSV asigna cada <b>clave de vereda</b> a su recorrido.
+          💡 Divide la comuna en recorridos compactos (cuadrantes) con la misma cantidad de manzanas, sin partir ninguna, y los numera de forma consecutiva: cada recorrido queda pegado al anterior. Si alguno queda mal, corregilo a mano con <b>Corregir manualmente</b>. El KML sale en una sola capa (un elemento por recorrido) y el CSV asigna cada <b>clave de vereda</b> a su recorrido.
         </div>
       </div><!-- /panel-recorridos -->
     </div>
@@ -1209,6 +1229,7 @@ let segMain=null, segCross1=null, segCross2=null, segTramos=[];
 
 function switchTab(tab){
   currentTab = tab;
+  if(tab!=='recorridos' && typeof rcBoxOff==='function') rcBoxOff();
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('panel-cuadras').style.display  = tab==='cuadras'  ? 'flex' : 'none';
   document.getElementById('panel-entre').style.display    = tab==='entre'   ? 'flex' : 'none';
@@ -3093,9 +3114,11 @@ function undoEspacios(){
 
 /* ============ RECORRIDOS POR COMUNA (cuadrantes automáticos) ============ */
 // Divide una comuna en recorridos compactos de ~M manzanas completas, parejos y numerados de
-// forma consecutiva (ver rcPartition).
-// Los datos de veredas viven en data/veredas/cNN.json.gz y se bajan solo para la comuna elegida.
+// forma consecutiva (ver rcPartition), y permite corregirlos a mano seleccionando manzanas en
+// el mapa. Los datos de veredas viven en data/veredas/cNN.json.gz y se bajan por comuna.
 let rcData=null, rcComuna=null, rcAssign=null, rcResult=[], rcRenderer=null, rcLabels=[];
+let rcStartUsed=1, rcColorByIdx=new Map(), rcEdit=false, rcSel=new Set(), rcUnitLayers=new Map();
+let rcBoxMode=false, rcBoxStartLL=null, rcBoxRect=null, rcIgnoreClickUntil=0;
 const rcCache=new Map(), rcUndoStack=[];
 const RC_SUELTA=1000000; // mid >= esto: vereda sin manzana real (clave 999), cuenta como unidad propia
 
@@ -3118,25 +3141,26 @@ async function rcFetchComuna(n){
   return data;
 }
 
-// Divide la comuna en K recorridos de igual cantidad de manzanas (K = manzanas / M) cortando el
-// mapa en bloques compactos: se parte recursivamente el conjunto de manzanas por su eje más largo,
-// repartiendo el peso en proporción. Las manzanas nunca se parten (las veredas sin manzana real
-// pesan poco). Después se numeran recorriendo el árbol: cada recorrido queda pegado al anterior.
-// Devuelve, por vereda, el índice de recorrido en orden de numeración (0..K-1).
-function rcWeightTotal(){
-  if(rcData._w==null) rcData._w=rcUnitsOf(rcData.v).reduce((s,u)=>s+u.w,0);
-  return rcData._w;
-}
+// Unidades = manzanas (las veredas sin manzana real son unidades de una sola vereda y pesan poco)
 function rcUnitsOf(v){
   const units=new Map();
   v.forEach((d,i)=>{ let u=units.get(d.mid); if(!u){ u={mid:d.mid,n:0,sx:0,sy:0,idx:[],w:d.mid>=RC_SUELTA?0.1:1}; units.set(d.mid,u); } u.n++; u.sx+=d.lon; u.sy+=d.lat; u.idx.push(i); });
   const arr=[...units.values()];
   const kx=Math.cos(v[0].lat*Math.PI/180)*111320, ky=110574;
-  arr.forEach(u=>{ u.x=u.sx/u.n*kx; u.y=u.sy/u.n*ky; });
+  arr.forEach(u=>{ u.lon=u.sx/u.n; u.lat=u.sy/u.n; u.x=u.lon*kx; u.y=u.lat*ky; });
   return arr;
 }
+function rcUnits(){ return rcData._u || (rcData._u=rcUnitsOf(rcData.v)); }
+function rcUnitMap(){ return rcData._um || (rcData._um=new Map(rcUnits().map(u=>[u.mid,u]))); }
+function rcWeightTotal(){ return rcUnits().reduce((s,u)=>s+u.w,0); }
+
+// Divide la comuna en K recorridos de igual cantidad de manzanas (K = manzanas / M) cortando el
+// mapa en bloques compactos: se parte recursivamente el conjunto de manzanas por su eje más largo,
+// repartiendo el peso en proporción. Después se numeran recorriendo el árbol (cada recorrido queda
+// pegado al anterior) y un suavizado mueve las manzanas "aisladas" al recorrido que las rodea.
+// Devuelve, por vereda, el índice de recorrido en orden de numeración (0..K-1).
 function rcPartition(v, M){
-  const arr=rcUnitsOf(v);
+  const arr=rcUnits();
   const W=arr.reduce((s,u)=>s+u.w,0);
   const k=Math.max(1,Math.round(W/M));
   const build=(us,kk)=>{
@@ -3162,13 +3186,43 @@ function rcPartition(v, M){
     return walk(s, walk(f,pos));
   };
   walk(root,[Math.min(...arr.map(u=>u.x)), Math.min(...arr.map(u=>u.y))]);
+  order.forEach((us,ri)=>us.forEach(u=>{ u.r=ri; }));
+  rcSmooth(arr, M);
   const assign=new Int32Array(v.length).fill(-1);
-  order.forEach((us,ri)=>us.forEach(u=>u.idx.forEach(i=>{ assign[i]=ri; })));
+  arr.forEach(u=>u.idx.forEach(i=>{ assign[i]=u.r; }));
   return assign;
 }
 
+// Suavizado: una manzana rodeada (7 vecinas más cercanas) por otro recorrido con al menos 2 vecinas
+// más que el suyo pasa a ese recorrido, siempre que los tamaños queden dentro de M ± 30 %.
+function rcSmooth(U, M){
+  const n=U.length, K=7;
+  const nb=U.map((u,i)=>{
+    const best=[];
+    for(let j=0;j<n;j++){ if(j===i) continue; const d=(u.x-U[j].x)**2+(u.y-U[j].y)**2;
+      if(best.length<K || d<best[best.length-1][0]){ best.push([d,j]); best.sort((a,b)=>a[0]-b[0]); if(best.length>K) best.pop(); } }
+    return best.map(b=>b[1]);
+  });
+  const size=new Map(); U.forEach(u=>size.set(u.r,(size.get(u.r)||0)+u.w));
+  const tol=Math.max(2,Math.round(M*0.3));
+  for(let pass=0;pass<6;pass++){
+    let moved=0;
+    for(let i=0;i<n;i++){
+      const u=U[i], cnt=new Map();
+      nb[i].forEach(j=>{ const r=U[j].r; cnt.set(r,(cnt.get(r)||0)+1); });
+      let bR=null,bC=0; cnt.forEach((c,r)=>{ if(r!==u.r && c>bC){ bC=c; bR=r; } });
+      if(bR===null) continue;
+      if(bC>=(cnt.get(u.r)||0)+2 && size.get(u.r)-u.w>=M-tol && size.get(bR)+u.w<=M+tol){
+        size.set(u.r,size.get(u.r)-u.w); size.set(bR,size.get(bR)+u.w); u.r=bR; moved++;
+      }
+    }
+    if(!moved) break;
+  }
+}
+
 const RC_COLORS=[...INSP_COLORS,'#0d9488','#be123c'];
-// Colorea los recorridos para que dos vecinos no compartan color (greedy sobre los 8 centroides más cercanos)
+// Colorea los recorridos para que dos vecinos no compartan color (greedy sobre los 8 centroides más
+// cercanos). Los que ya tenían color (rcColorByIdx) lo conservan, así editar no cambia los colores.
 function rcAssignColors(res){
   const kx=Math.cos(res[0].lat*Math.PI/180);
   const xy=res.map(r=>[r.lon*kx, r.lat]);
@@ -3177,21 +3231,26 @@ function rcAssignColors(res){
     xy.map((p,j)=>[j===i?Infinity:Math.hypot(p[0]-xy[i][0],p[1]-xy[i][1]),j]).sort((a,b)=>a[0]-b[0]).slice(0,8).forEach(([,j])=>{ nb[i].add(j); nb[j].add(i); });
   });
   res.forEach((r,i)=>{
+    if(r.color) return;
     const cnt=new Map(); nb[i].forEach(j=>{ const c=res[j].color; if(c) cnt.set(c,(cnt.get(c)||0)+1); });
     r.color=RC_COLORS.find(c=>!cnt.has(c)) || RC_COLORS.slice().sort((a,b)=>(cnt.get(a)||0)-(cnt.get(b)||0))[0];
   });
 }
 
+// Arma la lista de recorridos a partir de la asignación (índice de recorrido por vereda). Los
+// recorridos que quedan vacíos (por ediciones) desaparecen; el número es start + índice.
 function rcBuildResult(assign, start){
   let K=0; for(let i=0;i<assign.length;i++) if(assign[i]+1>K) K=assign[i]+1;
-  const res=Array.from({length:K},(_,i)=>({ num:start+i, idxs:[] }));
-  for(let i=0;i<assign.length;i++) if(assign[i]>=0) res[assign[i]].idxs.push(i);
+  const all=Array.from({length:K},(_,i)=>({ i, num:start+i, idxs:[], color:rcColorByIdx.get(i) }));
+  for(let i=0;i<assign.length;i++) if(assign[i]>=0) all[assign[i]].idxs.push(i);
+  const res=all.filter(r=>r.idxs.length);
   res.forEach(r=>{
     const mz=new Set(), bs=new Set(); let sl=0, so=0; r.polys=[];
     r.idxs.forEach(i=>{ const d=rcData.v[i]; if(d.mid<RC_SUELTA) mz.add(d.mid); sl+=d.lat; so+=d.lon; if(d.bar>=0) bs.add(rcData.b[d.bar]); d.polys.forEach(p=>r.polys.push(p)); });
     r.manz=mz.size; r.lat=sl/r.idxs.length; r.lon=so/r.idxs.length; r.barrios=[...bs];
   });
   if(res.length) rcAssignColors(res);
+  res.forEach(r=>rcColorByIdx.set(r.i,r.color));
   return res;
 }
 
@@ -3203,10 +3262,19 @@ function rcUpdateLabels(){
   const show=map.getZoom()>=14 || rcResult.length<=40;
   rcLabels.forEach(m=>{ if(show){ if(!layerGroup.hasLayer(m)) layerGroup.addLayer(m); } else if(layerGroup.hasLayer(m)) layerGroup.removeLayer(m); });
 }
+function rcLabelFor(r){
+  const icon=L.divIcon({className:'', html:'<div class="mk-num" style="background:'+r.color+';min-width:26px;width:auto;padding:0 5px;border-radius:12px">'+r.num+'</div>', iconSize:[30,22], iconAnchor:[15,11]});
+  return L.marker([r.lat,r.lon],{icon,interactive:false,keyboard:false});
+}
+function rcUnitStyle(u,r){
+  const sel=rcSel.has(u.mid);
+  return { renderer:rcGetRenderer(), color:sel?'#111827':r.color, weight:sel?3:1, fillColor:r.color, fillOpacity:sel?.95:.6, dashArray:sel?'5 3':null };
+}
+function rcRecByIdx(i){ return rcResult.find(r=>r.i===i); }
 
-function rcRedraw(){
+function rcRedraw(noFit){
   layerGroup.clearLayers();
-  rcLabels=[];
+  rcLabels=[]; rcUnitLayers=new Map();
   if(!rcData) return;
   const rend=rcGetRenderer();
   const bounds=[];
@@ -3214,16 +3282,26 @@ function rcRedraw(){
     const polys=[]; rcData.v.forEach(d=>d.polys.forEach(p=>polys.push(p)));
     const pg=L.polygon(polys,{renderer:rend,color:'#64748b',weight:1,fillColor:'#94a3b8',fillOpacity:.45}).addTo(layerGroup);
     bounds.push(pg.getBounds());
+  } else if(rcEdit){
+    // modo corrección: cada manzana es un objeto seleccionable
+    rcUnits().forEach(u=>{
+      const r=rcRecByIdx(rcAssign[u.idx[0]]); if(!r) return;
+      const polys=[]; u.idx.forEach(i=>rcData.v[i].polys.forEach(p=>polys.push(p)));
+      const pg=L.polygon(polys,rcUnitStyle(u,r)).addTo(layerGroup);
+      pg.on('click',e=>{ L.DomEvent.stopPropagation(e); rcUnitClick(u.mid); });
+      pg.on('contextmenu',e=>{ L.DomEvent.stop(e); rcSetDest(rcAssign[u.idx[0]]); });
+      rcUnitLayers.set(u.mid,pg); bounds.push(pg.getBounds());
+    });
+    rcResult.forEach(r=>rcLabels.push(rcLabelFor(r)));
   } else {
     rcResult.forEach(r=>{
       const pg=L.polygon(r.polys,{renderer:rend,color:r.color,weight:1,fillColor:r.color,fillOpacity:.65}).addTo(layerGroup);
-      pg.bindPopup('<b>Recorrido '+r.num+'</b><br>'+r.idxs.length+' veredas · '+r.manz+' manzanas'+(r.barrios.length?'<br>'+esc(r.barrios.join(', ')):''));
+      pg.bindPopup('<b>Recorrido '+r.num+'</b><br>'+r.manz+' manzanas · '+r.idxs.length+' veredas'+(r.barrios.length?'<br>'+esc(r.barrios.join(', ')):''));
       bounds.push(pg.getBounds());
-      const icon=L.divIcon({className:'', html:'<div class="mk-num" style="background:'+r.color+';min-width:26px;width:auto;padding:0 5px;border-radius:12px">'+r.num+'</div>', iconSize:[30,22], iconAnchor:[15,11]});
-      rcLabels.push(L.marker([r.lat,r.lon],{icon,interactive:false,keyboard:false}));
+      rcLabels.push(rcLabelFor(r));
     });
   }
-  if(bounds.length){ const b=bounds.reduce((a,x)=>a.extend(x), L.latLngBounds(bounds[0].getSouthWest(),bounds[0].getNorthEast())); map.fitBounds(b,{padding:[30,30],animate:false}); }
+  if(bounds.length && !noFit){ const b=bounds.reduce((a,x)=>a.extend(x), L.latLngBounds(bounds[0].getSouthWest(),bounds[0].getNorthEast())); map.fitBounds(b,{padding:[30,30],animate:false}); }
   rcUpdateLabels();
 }
 
@@ -3241,6 +3319,7 @@ function rcRenderList(){
   });
   document.getElementById('rcResultTitle').textContent='📦 '+rcResult.length+' recorrido'+(rcResult.length!==1?'s':'')+' generado'+(rcResult.length!==1?'s':'');
   document.getElementById('rcResultSection').style.display=rcResult.length?'block':'none';
+  if(!rcResult.length) rcExitEdit();
 }
 
 function rcUpdateHint(){
@@ -3262,7 +3341,7 @@ function rcShowComuna(){
 }
 
 function rcPushUndo(){
-  rcUndoStack.push({ comuna:rcComuna, size:document.getElementById('rcSize').value, start:document.getElementById('rcStart').value, assign:rcAssign?Array.from(rcAssign):null });
+  rcUndoStack.push({ comuna:rcComuna, size:document.getElementById('rcSize').value, start:rcStartUsed, assign:rcAssign?Array.from(rcAssign):null });
   if(rcUndoStack.length>UNDO_MAX) rcUndoStack.shift();
   const b=document.getElementById('btnUndoRecorridos'); if(b) b.disabled=false;
 }
@@ -3270,9 +3349,11 @@ function rcApplyState(s){
   rcComuna=s.comuna; rcData=s.comuna?rcCache.get(s.comuna):null;
   document.getElementById('rcComuna').value=s.comuna?String(s.comuna):'';
   document.getElementById('rcSize').value=s.size; document.getElementById('rcStart').value=s.start;
+  rcStartUsed=parseInt(s.start); if(isNaN(rcStartUsed)) rcStartUsed=1;
   rcAssign=s.assign?Int32Array.from(s.assign):null;
-  rcResult=(rcData&&rcAssign)?rcBuildResult(rcAssign, parseInt(s.start)||0):[];
-  rcShowComuna(); rcRenderList(); rcRedraw();
+  rcSel.clear();
+  rcResult=(rcData&&rcAssign)?rcBuildResult(rcAssign, rcStartUsed):[];
+  rcShowComuna(); rcRenderList(); rcFillDest(); rcUpdateSelInfo(); rcRedraw();
 }
 function undoRecorridos(){
   if(!rcUndoStack.length){ toast('Nada para deshacer','error'); return; }
@@ -3284,13 +3365,13 @@ function undoRecorridos(){
 async function rcOnComunaChange(){
   const n=parseInt(document.getElementById('rcComuna').value)||null;
   if(n===rcComuna) return;
-  if(!n){ rcPushUndo(); rcComuna=null; rcData=null; rcAssign=null; rcResult=[]; rcShowComuna(); rcRenderList(); rcRedraw(); return; }
+  if(!n){ rcPushUndo(); rcComuna=null; rcData=null; rcAssign=null; rcResult=[]; rcColorByIdx.clear(); rcExitEdit(); rcShowComuna(); rcRenderList(); rcRedraw(); return; }
   showLoading('Cargando comuna '+n+'...');
   try{
     const data=await rcFetchComuna(n);
     hideLoading();
     rcPushUndo();
-    rcComuna=n; rcData=data; rcAssign=null; rcResult=[];
+    rcComuna=n; rcData=data; rcAssign=null; rcResult=[]; rcColorByIdx.clear(); rcExitEdit();
     rcShowComuna(); rcRenderList(); rcRedraw();
     toast('✅ Comuna '+n+': '+data.v.length.toLocaleString('es-AR')+' veredas','ok');
   }catch(e){
@@ -3306,6 +3387,7 @@ function rcDividir(){
   if(!(S>=3)){ toast('Poné al menos 3 manzanas por recorrido','error'); return; }
   const start=parseInt(document.getElementById('rcStart').value); const st=isNaN(start)?1:start;
   rcPushUndo();
+  rcColorByIdx.clear(); rcExitEdit(); rcStartUsed=st;
   rcAssign=rcPartition(rcData.v, S);
   rcResult=rcBuildResult(rcAssign, st);
   rcRenderList(); rcRedraw();
@@ -3315,8 +3397,112 @@ function rcDividir(){
 function rcClear(){
   if(!rcResult.length) return;
   rcPushUndo();
-  rcAssign=null; rcResult=[];
+  rcAssign=null; rcResult=[]; rcColorByIdx.clear(); rcExitEdit();
   rcRenderList(); rcRedraw();
+}
+
+/* ---- Corrección manual: seleccionar manzanas en el mapa y pasarlas a otro recorrido ---- */
+function rcExitEdit(){
+  rcEdit=false; rcSel.clear(); rcBoxOff();
+  const t=document.getElementById('rcEditTools'); if(t) t.style.display='none';
+  const b=document.getElementById('btnRcEdit'); if(b) b.textContent='✏️ Corregir manualmente';
+}
+function rcToggleEdit(){
+  if(!rcResult.length) return;
+  if(rcEdit){ rcExitEdit(); rcRedraw(true); return; }
+  rcEdit=true;
+  document.getElementById('rcEditTools').style.display='block';
+  document.getElementById('btnRcEdit').textContent='✔ Terminar corrección';
+  rcFillDest(); rcUpdateSelInfo(); rcRedraw(true);
+}
+function rcFillDest(keep){
+  const sel=document.getElementById('rcDest'); if(!sel) return;
+  const prev=(keep!=null)?String(keep):sel.value;
+  sel.innerHTML='<option value="">— Elegí un recorrido —</option>'+
+    rcResult.slice().sort((a,b)=>a.num-b.num).map(r=>'<option value="'+r.i+'">Recorrido '+r.num+' ('+r.manz+' manz.)</option>').join('')+
+    '<option value="new">➕ Nuevo recorrido</option>';
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+}
+function rcSetDest(i){
+  const sel=document.getElementById('rcDest'); const r=rcRecByIdx(i); if(!sel||!r) return;
+  sel.value=String(i); toast('🎯 Destino: recorrido '+r.num,'ok');
+}
+function rcUpdateSelInfo(){
+  const el=document.getElementById('rcSelInfo'); if(!el) return;
+  if(!rcSel.size){ el.textContent='Sin selección'; return; }
+  const um=rcUnitMap(); let mz=0, su=0, ve=0; const recs=new Set();
+  rcSel.forEach(mid=>{ const u=um.get(mid); if(!u) return; if(mid<RC_SUELTA) mz++; else su++; ve+=u.idx.length; const r=rcRecByIdx(rcAssign[u.idx[0]]); if(r) recs.add(r.num); });
+  el.textContent=mz+' manzana'+(mz!==1?'s':'')+(su?' + '+su+' vereda'+(su!==1?'s':'')+' sueltas':'')+' · '+ve+' veredas · de: '+[...recs].sort((a,b)=>a-b).join(', ');
+}
+function rcRestyleUnit(mid){
+  const pg=rcUnitLayers.get(mid); if(!pg) return;
+  const u=rcUnitMap().get(mid), r=rcRecByIdx(rcAssign[u.idx[0]]); if(!r) return;
+  pg.setStyle(rcUnitStyle(u,r));
+  if(rcSel.has(mid)) pg.bringToFront();
+}
+function rcUnitClick(mid){
+  if(Date.now()<rcIgnoreClickUntil) return;
+  const paint=document.getElementById('chkRcPaint');
+  if(paint && paint.checked){ rcMoveMids([mid]); return; }
+  if(rcSel.has(mid)) rcSel.delete(mid); else rcSel.add(mid);
+  rcRestyleUnit(mid); rcUpdateSelInfo();
+}
+function rcSelClear(){ const old=[...rcSel]; rcSel.clear(); old.forEach(rcRestyleUnit); rcUpdateSelInfo(); }
+
+// Selección con rectángulo (arrastrando en el mapa)
+function rcBoxOff(){
+  rcBoxMode=false;
+  if(rcBoxRect){ try{ map.removeLayer(rcBoxRect); }catch(e){} rcBoxRect=null; }
+  if(typeof map!=='undefined' && map){ map.dragging.enable(); map.getContainer().style.cursor=''; }
+  const b=document.getElementById('btnRcBox'); if(b) b.style.background='';
+}
+function rcBoxToggle(){
+  if(!rcEdit) return;
+  if(rcBoxMode){ rcBoxOff(); return; }
+  rcBoxMode=true; map.dragging.disable(); map.getContainer().style.cursor='crosshair';
+  document.getElementById('btnRcBox').style.background='#fde68a';
+  toast('▭ Arrastrá en el mapa para seleccionar manzanas','ok');
+}
+function rcBoxDown(e){ if(!rcBoxMode||!rcEdit) return; rcBoxStartLL=e.latlng; rcBoxRect=L.rectangle([e.latlng,e.latlng],{color:'#111827',weight:1.5,dashArray:'5 3',fillColor:'#f59e0b',fillOpacity:.12,interactive:false}).addTo(map); }
+function rcBoxMove(e){ if(rcBoxRect) rcBoxRect.setBounds(L.latLngBounds(rcBoxStartLL,e.latlng)); }
+function rcBoxUp(){
+  if(!rcBoxRect) return;
+  const b=rcBoxRect.getBounds(); map.removeLayer(rcBoxRect); rcBoxRect=null;
+  rcIgnoreClickUntil=Date.now()+300;
+  const add=[]; rcUnits().forEach(u=>{ if(b.contains([u.lat,u.lon]) && !rcSel.has(u.mid)){ rcSel.add(u.mid); add.push(u.mid); } });
+  add.forEach(rcRestyleUnit); rcUpdateSelInfo(); rcBoxOff();
+  toast(add.length+' manzana'+(add.length!==1?'s':'')+' agregada'+(add.length!==1?'s':'')+' a la selección','ok');
+}
+
+function rcMoveMids(mids){
+  if(!mids.length){ toast('Seleccioná al menos una manzana','error'); return; }
+  const v=document.getElementById('rcDest').value;
+  if(v===''){ toast('Elegí el recorrido destino (o clic derecho sobre una manzana de ese recorrido)','error'); return; }
+  rcPushUndo();
+  let target;
+  if(v==='new'){ let mx=-1; rcResult.forEach(r=>{ if(r.i>mx) mx=r.i; }); target=mx+1; } else target=parseInt(v);
+  const um=rcUnitMap();
+  mids.forEach(mid=>{ const u=um.get(mid); if(u) u.idx.forEach(i=>{ rcAssign[i]=target; }); });
+  rcResult=rcBuildResult(rcAssign, rcStartUsed);
+  rcSel.clear();
+  rcRenderList(); rcFillDest(String(target)); rcRedraw(true); rcUpdateSelInfo();
+  const r=rcRecByIdx(target);
+  toast('✅ '+mids.length+' manzana'+(mids.length!==1?'s':'')+' → recorrido '+(r?r.num:(rcStartUsed+target)),'ok');
+}
+function rcMoveSel(){ rcMoveMids([...rcSel]); }
+
+// Cierra los huecos de numeración que quedan si algún recorrido se vació
+function rcRenumber(){
+  if(!rcResult.length) return;
+  const ids=rcResult.map(r=>r.i).sort((a,b)=>a-b);
+  if(ids.every((id,k)=>id===k)){ toast('La numeración ya es consecutiva','ok'); return; }
+  rcPushUndo();
+  const map2=new Map(ids.map((id,k)=>[id,k]));
+  for(let i=0;i<rcAssign.length;i++) rcAssign[i]=map2.get(rcAssign[i]);
+  const old=rcColorByIdx; rcColorByIdx=new Map(); ids.forEach((id,k)=>{ const c=old.get(id); if(c) rcColorByIdx.set(k,c); });
+  rcResult=rcBuildResult(rcAssign, rcStartUsed);
+  rcRenderList(); rcFillDest(); rcRedraw(true);
+  toast('🔢 Renumerado: '+rcResult[0].num+' al '+rcResult[rcResult.length-1].num,'ok');
 }
 
 function rcRingKml(r){ const c=r.map(p=>p[1].toFixed(5)+','+p[0].toFixed(5)+',0'); c.push(c[0]); return c.join(' '); }
@@ -3356,8 +3542,7 @@ function rcDownloadCsv(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
   toast('📥 '+name+' ('+rcData.v.length.toLocaleString('es-AR')+' veredas)','ok');
 }
-
-// KMZ = el mismo KML comprimido en un zip (doc.kml): pesa ~4-5 veces menos y My Maps/Earth lo abren igual
+// KMZ = el mismo KML comprimido en un zip (doc.kml): pesa ~10 veces menos y My Maps/Earth lo abren igual
 async function rcDownloadKmz(){
   if(!rcResult.length) return;
   showLoading('Comprimiendo KMZ...');
@@ -3374,6 +3559,7 @@ async function rcDownloadKmz(){
 document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('rcComuna').addEventListener('change', rcOnComunaChange);
   map.on('zoomend', rcUpdateLabels);
+  map.on('mousedown', rcBoxDown); map.on('mousemove', rcBoxMove); map.on('mouseup', rcBoxUp);
   document.getElementById('rcSize').addEventListener('input', rcUpdateHint);
   document.getElementById('btnRcDividir').addEventListener('click', rcDividir);
   document.getElementById('btnRcKml').addEventListener('click', ()=>rcDownloadKml());
@@ -3381,6 +3567,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('btnRcCsv').addEventListener('click', rcDownloadCsv);
   document.getElementById('btnRcClear').addEventListener('click', rcClear);
   document.getElementById('btnUndoRecorridos').addEventListener('click', undoRecorridos);
+  document.getElementById('btnRcEdit').addEventListener('click', rcToggleEdit);
+  document.getElementById('btnRcBox').addEventListener('click', rcBoxToggle);
+  document.getElementById('btnRcSelClear').addEventListener('click', rcSelClear);
+  document.getElementById('btnRcMove').addEventListener('click', rcMoveSel);
+  document.getElementById('btnRcRenum').addEventListener('click', rcRenumber);
   initColorUnicoPicker('chkRcColorUnico','rcColorPicker','recorridosKmlColorRc','#0055a5');
 });
 /* =================================================================== */
